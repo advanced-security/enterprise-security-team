@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
 
 """
-This file holds the main function that does all the things.
+This script "replaces" `ghe-org-admin-promote` from GHES to be able to also run 
+in GHEC/GHAE.  It promotes the enterprise admin running this script to an 
+organization owner of all organizations in the enterprise.
 
 Inputs:
-- GitHub API endpoint (assumes github.com if not specified or run within GHES/GHAE)
-- PAT with `enterprise:admin` scope
-- Enterprise slug
+- GitHub API endpoint
+- PAT with `enterprise:admin` scope, read from a file called `token.txt`
+- Enterprise slug (the string that comes after `/enterprises/` in the URL)
 
 Outputs:
-- CSV file of all organizations in the enterprise
+- Total count of orgs to `stdout`
+- Total count of orgs that the enterprise owner now owns to `stdout`
+- A CSV of all organizations in the enterprise to `orgs.csv`
 """
 
 # Imports
 from src import enterprises, organizations
-import os
 
-# Read in config values
-if os.environ.get("GITHUB_GRAPHQL_URL") is None:
-    api_endpoint = "https://api.github.com/graphql"
-else:
-    api_endpoint = os.environ.get("GITHUB_GRAPHQL_URL")
+# Set API endpoint
+# graphql_endpoint = "https://GHES-HOSTNAME-HERE/api/graphql" # for GHES/GHAE
+graphql_endpoint = "https://api.github.com/graphql"  # for GHEC
 
+# github_pat = "GITHUB-PAT-HERE"  # if you want to set that manually
 with open("token.txt", "r") as f:
     github_pat = f.read().strip()
 
-enterprise_slug = "GitHub"
-
+enterprise_slug = "ENTERPRISE-SLUG-HERE"
 
 # Set up the headers
 headers = {
@@ -38,18 +39,17 @@ headers = {
 if __name__ == "__main__":
     # Get the total count of organizations
     total_org_count = organizations.get_total_count(
-        api_endpoint, enterprise_slug, headers
+        graphql_endpoint, enterprise_slug, headers
     )
 
     # Get the organization data, make sure it's the same length as the total count
-    orgs = organizations.list_orgs(api_endpoint, enterprise_slug, headers)
+    orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
     assert len(orgs) == total_org_count
 
     # Get the enterprise ID
     enterprise_id = enterprises.get_enterprise_id(
-        api_endpoint, enterprise_slug, headers
+        graphql_endpoint, enterprise_slug, headers
     )
-    print(enterprise_id)
 
     # Promote enterprise admin running this to an organization owner of all orgs
     unmanaged_orgs = []
@@ -58,7 +58,7 @@ if __name__ == "__main__":
             unmanaged_orgs.append(org["node"]["id"])
             print("Promoting to owner on organization: {}".format(org["node"]["login"]))
             enterprises.promote_admin(
-                api_endpoint, headers, enterprise_id, org["node"]["id"]
+                graphql_endpoint, headers, enterprise_id, org["node"]["id"]
             )
 
     # Print a little data
@@ -67,5 +67,8 @@ if __name__ == "__main__":
         "Total count of newly managed organizations is: {}".format(len(unmanaged_orgs))
     )
 
-    # Write the data to a CSV file
+    # Refresh that data
+    orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
+
+    # Write the orgs to a CSV
     organizations.write_orgs_to_csv(orgs)

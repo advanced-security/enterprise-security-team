@@ -44,6 +44,10 @@ def make_org_query(enterprise_slug, after_cursor=None):
               email
               viewerCanAdminister
               viewerIsAMember
+              repositories {
+                totalCount
+                totalDiskUsage
+              }
             }
             cursor
           }
@@ -84,17 +88,29 @@ def list_orgs(api_endpoint, enterprise_slug, headers):
 # Write the orgs to a csv file
 def write_orgs_to_csv(orgs):
     with open("all_orgs.csv", "w") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=[
+        writer = csv.writer(f)
+        writer.writerow(
+            [
                 "id",
                 "createdAt",
                 "login",
                 "email",
                 "viewerCanAdminister",
                 "viewerIsAMember",
-            ],
+                "repositories.totalCount",
+                "repositories.totalDiskUsage",
+            ]
         )
-        writer.writeheader()
         for org in orgs:
-            writer.writerow(org["node"])
+            writer.writerow(
+                [
+                    org["node"]["id"],
+                    org["node"]["createdAt"],
+                    org["node"]["login"],
+                    org["node"]["email"],
+                    org["node"]["viewerCanAdminister"],
+                    org["node"]["viewerIsAMember"],
+                    org["node"]["repositories"]["totalCount"],
+                    org["node"]["repositories"]["totalDiskUsage"],
+                ]
+            )
