@@ -1,5 +1,6 @@
 # Token file used in local testing
 token.txt
+unmanaged_orgs.txt
 
 # CSV files
 *.csv
