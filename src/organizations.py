@@ -86,8 +86,8 @@ def list_orgs(api_endpoint, enterprise_slug, headers):
 
 
 # Write the orgs to a csv file
-def write_orgs_to_csv(orgs):
-    with open("all_orgs.csv", "w") as f:
+def write_orgs_to_csv(orgs, filename):
+    with open(filename, "w") as f:
         writer = csv.writer(f)
         writer.writerow(
             [

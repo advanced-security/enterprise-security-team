@@ -13,6 +13,7 @@ Inputs:
 Outputs:
 - Total count of orgs to `stdout`
 - Total count of orgs that the enterprise owner now owns to `stdout`
+- A text file of all (previously) unmanaged orgs to `unmanaged_orgs.txt`
 - A CSV of all organizations in the enterprise to `orgs.csv`
 """
 
@@ -58,8 +59,13 @@ if __name__ == "__main__":
             unmanaged_orgs.append(org["node"]["id"])
             print("Promoting to owner on organization: {}".format(org["node"]["login"]))
             enterprises.promote_admin(
-                graphql_endpoint, headers, enterprise_id, org["node"]["id"]
+                graphql_endpoint, headers, enterprise_id, org["node"]["id"], "OWNER"
             )
+    with open("unmanaged_orgs.txt", "w") as f:
+        for i in unmanaged_orgs:
+            f.write(i)
+            f.write("\n")
+        f.close()
 
     # Print a little data
     print("Total count of organizations returned by the query is: {}".format(len(orgs)))
@@ -71,4 +77,4 @@ if __name__ == "__main__":
     orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
 
     # Write the orgs to a CSV
-    organizations.write_orgs_to_csv(orgs)
+    organizations.write_orgs_to_csv(orgs, "all_orgs.csv")

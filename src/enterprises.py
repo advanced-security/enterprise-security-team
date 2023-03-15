@@ -27,23 +27,25 @@ def get_enterprise_id(api_endpoint, enterprise_slug, headers):
 
 
 # Make promote mutation
-def make_promote_mutation(enterprise_id, org_id):
-    return """
+def make_promote_mutation(enterprise_id, org_id, role):
+    return (
+        """
     mutation {
-      updateEnterpriseOwnerOrganizationRole(input: { enterpriseId: "ENTERPRISE_ID", organizationId: "ORG_ID", organizationRole: OWNER }) {
+      updateEnterpriseOwnerOrganizationRole(input: { enterpriseId: "ENTERPRISE_ID", organizationId: "ORG_ID", organizationRole: "ORG_ROLE" }) {
         clientMutationId
       }
     }
     """.replace(
-        "ENTERPRISE_ID", enterprise_id
-    ).replace(
-        "ORG_ID", org_id
+            "ENTERPRISE_ID", enterprise_id
+        )
+        .replace("ORG_ID", org_id)
+        .replace("ORG_ROLE", role)
     )
 
 
 # Promote an enterprise admin to an organization owner
-def promote_admin(api_endpoint, headers, enterprise_id, org_id):
-    promote_query = make_promote_mutation(enterprise_id, org_id)
+def promote_admin(api_endpoint, headers, enterprise_id, org_id, role):
+    promote_query = make_promote_mutation(enterprise_id, org_id, role)
     response = requests.post(
         api_endpoint, json={"query": promote_query}, headers=headers
     )
