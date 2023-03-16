@@ -31,7 +31,7 @@ def make_promote_mutation(enterprise_id, org_id, role):
     return (
         """
     mutation {
-      updateEnterpriseOwnerOrganizationRole(input: { enterpriseId: "ENTERPRISE_ID", organizationId: "ORG_ID", organizationRole: "ORG_ROLE" }) {
+      updateEnterpriseOwnerOrganizationRole(input: { enterpriseId: "ENTERPRISE_ID", organizationId: "ORG_ID", organizationRole: ORG_ROLE }) {
         clientMutationId
       }
     }

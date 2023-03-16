@@ -21,12 +21,14 @@ Outputs:
 from src import enterprises, organizations
 
 # Set API endpoint
-# graphql_endpoint = "https://GHES-HOSTNAME-HERE/api/graphql" # for GHES/GHAE
 graphql_endpoint = "https://api.github.com/graphql"  # for GHEC
+# graphql_endpoint = "https://GHES-HOSTNAME-HERE/api/graphql" # for GHES/GHAE
+
 
 # github_pat = "GITHUB-PAT-HERE"  # if you want to set that manually
 with open("token.txt", "r") as f:
     github_pat = f.read().strip()
+    f.close()
 
 enterprise_slug = "ENTERPRISE-SLUG-HERE"
 

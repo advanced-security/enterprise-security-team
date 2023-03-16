@@ -65,7 +65,7 @@ def make_org_query(enterprise_slug, after_cursor=None):
     )
 
 
-# List all organizations in the enterprise by name
+# List all organizations in the enterprise by name (that the requestor can see)
 def list_orgs(api_endpoint, enterprise_slug, headers):
     orgs = []
     after_cursor = None
@@ -114,3 +114,31 @@ def write_orgs_to_csv(orgs, filename):
                     org["node"]["repositories"]["totalDiskUsage"],
                 ]
             )
+
+
+# List the users in an organization, using REST API with pagination
+def list_org_users(api_endpoint, headers, org):
+    users = []
+    page = 1
+    while True:
+        response = requests.get(
+            api_endpoint + "/orgs/{}/members?page={}".format(org, page),
+            headers=headers,
+        )
+        response.raise_for_status()
+        users.extend(response.json())
+        if "next" not in response.links:
+            break
+        page += 1
+    return users
+
+
+# Invite a user to an organization
+def add_org_user(api_endpoint, headers, org, username):
+    response = requests.put(
+        api_endpoint + "/orgs/{}/memberships/{}".format(org, username),
+        json={"role": "member"},
+        headers=headers,
+    )
+    response.raise_for_status()
+    print(response.status_code)
