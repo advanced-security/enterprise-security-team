@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-This is a GitHub Action that will move major semvers.  Only the latest major semver will receive updates.
+Only the latest major semver will receive security attention.
 
 ## Reporting a Vulnerability
 
