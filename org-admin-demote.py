@@ -47,9 +47,12 @@ if __name__ == "__main__":
     with open("unmanaged_orgs.txt", "r") as f:
         unmanaged_orgs = f.read().splitlines()
 
+    # Print the total count of orgs to demote admin from
+    print("Total count of orgs to demote admin from: {}".format(len(unmanaged_orgs)))
+
     # Remove the enterprise admin running this from all of the unmanaged orgs
-    for org_id in unmanaged_orgs:
-        print("Removing from organization: {}".format(org_id))
+    for i, org_id in enumerate(unmanaged_orgs):
+        print("Removing from organization: {} [{}/{}]".format(org_id, i+1, len(unmanaged_orgs)))
         enterprises.promote_admin(
             graphql_endpoint, headers, enterprise_id, org_id, "UNAFFILIATED"
         )
