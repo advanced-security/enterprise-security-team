@@ -48,9 +48,13 @@ if __name__ == "__main__":
     # Get the organization data, make sure it's the same length as the total count
     orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
     assert len(orgs) == total_org_count
-    
+
     # Print a little data
-    print("Total count of organizations returned by the query is: {}".format(total_org_count))
+    print(
+        "Total count of organizations returned by the query is: {}".format(
+            total_org_count
+        )
+    )
 
     # Get the enterprise ID
     enterprise_id = enterprises.get_enterprise_id(
@@ -58,10 +62,20 @@ if __name__ == "__main__":
     )
 
     # Promote enterprise admin running this to an organization owner of all orgs
-    unmanaged_orgs = [org["node"]["id"] for org in orgs if not org["node"]["viewerCanAdminister"]]
-    print("Total count of unmanaged organizations to be promoted on: {}".format(len(unmanaged_orgs)))
+    unmanaged_orgs = [
+        org["node"]["id"] for org in orgs if not org["node"]["viewerCanAdminister"]
+    ]
+    print(
+        "Total count of unmanaged organizations to be promoted on: {}".format(
+            len(unmanaged_orgs)
+        )
+    )
     for i, org_id in enumerate(unmanaged_orgs):
-        print("Promoting to owner on organization: {} [{}/{}]".format(org_id, i+1, len(unmanaged_orgs)))
+        print(
+            "Promoting to owner on organization: {} [{}/{}]".format(
+                org_id, i + 1, len(unmanaged_orgs)
+            )
+        )
         enterprises.promote_admin(
             graphql_endpoint, headers, enterprise_id, org_id, "OWNER"
         )

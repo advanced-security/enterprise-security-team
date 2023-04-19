@@ -52,7 +52,11 @@ if __name__ == "__main__":
 
     # Remove the enterprise admin running this from all of the unmanaged orgs
     for i, org_id in enumerate(unmanaged_orgs):
-        print("Removing from organization: {} [{}/{}]".format(org_id, i+1, len(unmanaged_orgs)))
+        print(
+            "Removing from organization: {} [{}/{}]".format(
+                org_id, i + 1, len(unmanaged_orgs)
+            )
+        )
         enterprises.promote_admin(
             graphql_endpoint, headers, enterprise_id, org_id, "UNAFFILIATED"
         )
