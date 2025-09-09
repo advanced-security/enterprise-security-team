@@ -88,8 +88,7 @@ def has_team_role(api_endpoint, headers, org, team_slug, role_id, legacy=False):
     if legacy:
         # http(s)://HOSTNAME/api/v3/orgs/ORG/security-managers
         response = requests.get(
-            api_endpoint
-            + "/orgs/{}/security-managers".format(quote(org)),
+            api_endpoint + "/orgs/{}/security-managers".format(quote(org)),
             headers=add_request_headers(headers),
         )
         response.raise_for_status()
