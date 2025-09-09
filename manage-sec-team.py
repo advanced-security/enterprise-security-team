@@ -33,7 +33,9 @@ def add_args(parser) -> None:
         help="GitHub API URL (https://github-hostname-here/api/v3/ for GHES, EMU or data residency)",
     )
     parser.add_argument(
-        "--token-file", required=False, help="GitHub Personal Access Token file (or use GITHUB_TOKEN)"
+        "--token-file",
+        required=False,
+        help="GitHub Personal Access Token file (or use GITHUB_TOKEN)",
     )
     parser.add_argument(
         "--org-list", default="all_orgs.csv", help="CSV file of organizations"
@@ -42,8 +44,14 @@ def add_args(parser) -> None:
         "--sec-team-name", default="security-managers", help="Security team name"
     )
     parser.add_argument("--sec-team-members", nargs="*", help="Security team members")
-    parser.add_argument("--sec-team-members-file", required=False, help="Security team members file")
-    parser.add_argument("--legacy", action="store_true", help="Use legacy API endpoints to manage the security managers")
+    parser.add_argument(
+        "--sec-team-members-file", required=False, help="Security team members file"
+    )
+    parser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Use legacy API endpoints to manage the security managers",
+    )
     parser.add_argument(
         "--debug",
         "-d",
@@ -53,22 +61,36 @@ def add_args(parser) -> None:
 
 
 def make_security_managers_team(
-    org_name: str, sec_team_name: str, api_url: str, headers: dict[str, str], legacy=False
+    org_name: str,
+    sec_team_name: str,
+    api_url: str,
+    headers: dict[str, str],
+    legacy=False,
 ) -> None:
     """Create or update the security managers team in the specified organization."""
     security_manager_role_id: str | None = None
 
     if not legacy:
-        org_roles: dict[str, Any] = organizations.list_org_roles(api_url, headers, org_name)
+        org_roles: dict[str, Any] = organizations.list_org_roles(
+            api_url, headers, org_name
+        )
 
         # Check if the "security manager" role exists
         if "roles" not in org_roles:
             LOG.error("⨯ Malformed response from GitHub API")
             return
 
-        security_manager_role_id_list = [role["id"] for role in org_roles["roles"] if role["name"] == "security_manager"]
+        security_manager_role_id_list = [
+            role["id"]
+            for role in org_roles["roles"]
+            if role["name"] == "security_manager"
+        ]
         if not security_manager_role_id_list:
-            LOG.error("⨯ Organization {} does not have a security manager role".format(org_name))
+            LOG.error(
+                "⨯ Organization {} does not have a security manager role".format(
+                    org_name
+                )
+            )
             return
         security_manager_role_id = security_manager_role_id_list[0]
 
@@ -87,13 +109,33 @@ def make_security_managers_team(
     # Update that team to have the "security manager" role
     try:
         # only update it if the team does not already have the role
-        if not teams.has_team_role(api_url, headers, org_name, sec_team_name, security_manager_role_id, legacy=legacy):
-            teams.change_team_role(api_url, headers, org_name, sec_team_name, security_manager_role_id, legacy=legacy)
+        if not teams.has_team_role(
+            api_url,
+            headers,
+            org_name,
+            sec_team_name,
+            security_manager_role_id,
+            legacy=legacy,
+        ):
+            teams.change_team_role(
+                api_url,
+                headers,
+                org_name,
+                sec_team_name,
+                security_manager_role_id,
+                legacy=legacy,
+            )
             LOG.info(
-                "✓ Team {} updated as a security manager for {}".format(sec_team_name, org_name)
+                "✓ Team {} updated as a security manager for {}".format(
+                    sec_team_name, org_name
+                )
             )
         else:
-            LOG.debug("✓ Team {} already has the security manager role for {}".format(sec_team_name, org_name))
+            LOG.debug(
+                "✓ Team {} already has the security manager role for {}".format(
+                    sec_team_name, org_name
+                )
+            )
     except Exception as e:
         LOG.error("⨯ Failed to update team {}: {}".format(sec_team_name, e))
         if LOG.getEffectiveLevel() == logging.DEBUG:
@@ -117,7 +159,11 @@ def add_security_managers_to_team(
             try:
                 organizations.add_org_user(api_url, headers, org_name, username)
             except Exception as e:
-                LOG.error("⨯ Failed to add user {} to org {}: {}".format(username, org_name, e))
+                LOG.error(
+                    "⨯ Failed to add user {} to org {}: {}".format(
+                        username, org_name, e
+                    )
+                )
                 return
 
     # Get the list of team members, adding the missing ones to the team and removing the extra ones
@@ -131,18 +177,30 @@ def add_security_managers_to_team(
                     api_url, headers, org_name, sec_team_name, username
                 )
             except Exception as e:
-                LOG.error("⨯ Failed to remove user {} from team {}: {}".format(username, sec_team_name, e))
+                LOG.error(
+                    "⨯ Failed to remove user {} from team {}: {}".format(
+                        username, sec_team_name, e
+                    )
+                )
                 return
     for username in sec_team_members:
         if username not in team_members_list:
             LOG.info("Adding {} to {}".format(username, sec_team_name))
             try:
-                teams.add_team_member(api_url, headers, org_name, sec_team_name, username)
+                teams.add_team_member(
+                    api_url, headers, org_name, sec_team_name, username
+                )
             except Exception as e:
-                LOG.error("⨯ Failed to add user {} to team {}: {}".format(username, sec_team_name, e))
+                LOG.error(
+                    "⨯ Failed to add user {} to team {}: {}".format(
+                        username, sec_team_name, e
+                    )
+                )
                 return
         else:
-            LOG.debug("✓ User {} is already a member of {}".format(username, sec_team_name))
+            LOG.debug(
+                "✓ User {} is already a member of {}".format(username, sec_team_name)
+            )
 
 
 def main() -> None:
@@ -174,7 +232,9 @@ def main() -> None:
     elif args.sec_team_members:
         sec_team_members = args.sec_team_members
     else:
-        LOG.error("⨯ Please provide either --sec-team-members or --sec-team-members-file")
+        LOG.error(
+            "⨯ Please provide either --sec-team-members or --sec-team-members-file"
+        )
         return
 
     # Set up the headers
@@ -186,7 +246,9 @@ def main() -> None:
     for org in orgs:
         org_name = org["login"]
 
-        make_security_managers_team(org_name, args.sec_team_name, args.api_url, headers, legacy=args.legacy)
+        make_security_managers_team(
+            org_name, args.sec_team_name, args.api_url, headers, legacy=args.legacy
+        )
         add_security_managers_to_team(
             org_name, args.sec_team_name, sec_team_members, args.api_url, headers
         )

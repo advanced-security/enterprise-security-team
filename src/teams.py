@@ -54,14 +54,18 @@ def create_team(api_endpoint, headers, org, team_slug):
 
 
 # Change that security manager team's role to "security manager"
-def change_team_role(api_endpoint, headers, org, team_slug, security_manager_role_id=None, legacy=False):
+def change_team_role(
+    api_endpoint, headers, org, team_slug, security_manager_role_id=None, legacy=False
+):
     """
     Change the role of a team in an organization to "security manager"
     """
     if legacy:
         response = requests.put(
             api_endpoint
-            + "/orgs/{}/security-managers/teams/{}".format(quote(org), quote(team_slug)),
+            + "/orgs/{}/security-managers/teams/{}".format(
+                quote(org), quote(team_slug)
+            ),
             headers=add_request_headers(headers),
         )
         response.raise_for_status()
@@ -69,7 +73,9 @@ def change_team_role(api_endpoint, headers, org, team_slug, security_manager_rol
         # /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}
         response = requests.put(
             api_endpoint
-            + "/orgs/{}/organization-roles/teams/{}/{}".format(quote(org), quote(team_slug), security_manager_role_id),
+            + "/orgs/{}/organization-roles/teams/{}/{}".format(
+                quote(org), quote(team_slug), security_manager_role_id
+            ),
             headers=add_request_headers(headers),
         )
         response.raise_for_status()
