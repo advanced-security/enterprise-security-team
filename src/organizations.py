@@ -189,7 +189,8 @@ def add_org_user(api_endpoint, headers, org, username):
         headers=add_request_headers(headers),
     )
     response.raise_for_status()
-    LOG.debug(response.json())
+    if LOG.isEnabledFor(logging.DEBUG):
+        LOG.debug(response.json())
 
 
 def list_org_roles(api_endpoint, headers, org):
