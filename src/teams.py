@@ -8,13 +8,16 @@ This file holds team-related functions
 - assign team custom role on all org repos
 """
 
+from typing import Any
 import requests
 from urllib.parse import quote
-from .headers import add_request_headers
+from .util import add_request_headers
 
 
 # List teams using REST API with pagination
-def list_teams(api_endpoint, headers, org):
+def list_teams(
+    api_endpoint: str, headers: dict[str, str], org: str
+) -> list[dict[str, Any]]:
     """
     List all teams in an organization.
     """
@@ -36,7 +39,9 @@ def list_teams(api_endpoint, headers, org):
 
 # Create "closed" security manager team using REST API
 # Closed teams are visible to users, allowing an understanding of who's responsible
-def create_team(api_endpoint, headers, org, team_slug):
+def create_team(
+    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str
+) -> dict[str, Any]:
     """
     Create a new team in an organization.
     """
@@ -55,7 +60,12 @@ def create_team(api_endpoint, headers, org, team_slug):
 
 # Change that security manager team's role to "security manager"
 def change_team_role(
-    api_endpoint, headers, org, team_slug, security_manager_role_id=None, legacy=False
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    security_manager_role_id: str | None = None,
+    legacy: bool = False,
 ):
     """
     Change the role of a team in an organization to "security manager"
@@ -74,14 +84,21 @@ def change_team_role(
         response = requests.put(
             api_endpoint
             + "/orgs/{}/organization-roles/teams/{}/{}".format(
-                quote(org), quote(team_slug), security_manager_role_id
+                quote(org), quote(team_slug), quote(str(security_manager_role_id))
             ),
             headers=add_request_headers(headers),
         )
         response.raise_for_status()
 
 
-def has_team_role(api_endpoint, headers, org, team_slug, role_id, legacy=False):
+def has_team_role(
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    role_id: str | None,
+    legacy=False,
+) -> bool:
     """
     Check if a team has a specific role in an organization.
     """
@@ -117,7 +134,9 @@ def has_team_role(api_endpoint, headers, org, team_slug, role_id, legacy=False):
 
 
 # List team members using REST API with pagination
-def list_team_members(api_endpoint, headers, org, team_slug):
+def list_team_members(
+    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str
+) -> list[dict[str, Any]]:
     """
     List all members of a team in an organization.
     """
@@ -140,7 +159,9 @@ def list_team_members(api_endpoint, headers, org, team_slug):
 
 
 # Add a user to a team using REST API
-def add_team_member(api_endpoint, headers, org, team_slug, username):
+def add_team_member(
+    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str, username: str
+):
     """
     Add a user to a team in an organization.
     """
@@ -155,7 +176,9 @@ def add_team_member(api_endpoint, headers, org, team_slug, username):
 
 
 # Remove a user from a team using REST API
-def remove_team_member(api_endpoint, headers, org, team_slug, username):
+def remove_team_member(
+    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str, username: str
+):
     """
     Remove a user from a team in an organization.
     """

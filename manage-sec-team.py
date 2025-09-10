@@ -19,8 +19,9 @@ Outputs:
 from argparse import ArgumentParser
 from typing import Any
 from defusedcsv import csv
-from src import teams, organizations, github_token
+from src import teams, organizations, util
 import logging
+
 
 LOG = logging.getLogger(__name__)
 
@@ -28,9 +29,9 @@ LOG = logging.getLogger(__name__)
 def add_args(parser) -> None:
     """Add arguments to the command line parser."""
     parser.add_argument(
-        "--api-url",
-        default="https://api.github.com",
-        help="GitHub API URL (https://github-hostname-here/api/v3/ for GHES, EMU or data residency)",
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
     )
     parser.add_argument(
         "--token-file",
@@ -38,10 +39,14 @@ def add_args(parser) -> None:
         help="GitHub Personal Access Token file (or use GITHUB_TOKEN)",
     )
     parser.add_argument(
-        "--org-list", default="all_orgs.csv", help="CSV file of organizations"
+        "--org-list",
+        default="all_orgs.csv",
+        help="CSV file of organizations (default: all_orgs.csv)",
     )
     parser.add_argument(
-        "--sec-team-name", default="security-managers", help="Security team name"
+        "--sec-team-name",
+        default="security-managers",
+        help="Security team name (default: security-managers)",
     )
     parser.add_argument("--sec-team-members", nargs="*", help="Security team members")
     parser.add_argument(
@@ -215,7 +220,7 @@ def main() -> None:
     with open(args.org_list, "r") as f:
         orgs = list(csv.DictReader(f))
 
-    github_pat = github_token.read_token(args.token_file)
+    github_pat = util.read_token(args.token_file)
 
     if not github_pat:
         LOG.error("⨯ GitHub Personal Access Token not found")
@@ -237,6 +242,8 @@ def main() -> None:
         )
         return
 
+    api_url = util.rest_api_url_from_server_url(args.github_url)
+
     # Set up the headers
     headers = {
         "Authorization": "token {}".format(github_pat),
@@ -247,10 +254,10 @@ def main() -> None:
         org_name = org["login"]
 
         make_security_managers_team(
-            org_name, args.sec_team_name, args.api_url, headers, legacy=args.legacy
+            org_name, args.sec_team_name, api_url, headers, legacy=args.legacy
         )
         add_security_managers_to_team(
-            org_name, args.sec_team_name, sec_team_members, args.api_url, headers
+            org_name, args.sec_team_name, sec_team_members, api_url, headers
         )
 
 

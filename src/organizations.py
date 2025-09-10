@@ -8,7 +8,7 @@ from typing import Any
 from defusedcsv import csv
 from urllib.parse import quote
 import requests
-from .headers import add_request_headers
+from .util import add_request_headers
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -30,7 +30,9 @@ def format_errors(errors: list[dict[str, Any]]) -> str:
 
 
 # Count all organizations in the enterprise
-def get_total_count(api_endpoint, enterprise_slug, headers):
+def get_total_count(
+    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+) -> int:
     """
     Get the total count of organizations in the enterprise.
     """
@@ -60,7 +62,7 @@ def get_total_count(api_endpoint, enterprise_slug, headers):
 
 
 # Make query for all organization names in the enterprise
-def make_org_query(enterprise_slug, after_cursor=None):
+def make_org_query(enterprise_slug: str, after_cursor: str | None = None) -> str:
     """
     Create a GraphQL query to list all organizations in the enterprise.
     """
@@ -97,7 +99,9 @@ def make_org_query(enterprise_slug, after_cursor=None):
     )
 
 
-def list_orgs(api_endpoint, enterprise_slug, headers):
+def list_orgs(
+    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+) -> list[dict[str, Any]]:
     """
     List all organizations in the enterprise by name.
     """
@@ -126,7 +130,7 @@ def list_orgs(api_endpoint, enterprise_slug, headers):
     return orgs
 
 
-def write_orgs_to_csv(orgs, filename):
+def write_orgs_to_csv(orgs: list[dict[str, Any]], filename: str):
     """
     Write the list of organizations to a CSV file.
     """
@@ -159,7 +163,9 @@ def write_orgs_to_csv(orgs, filename):
             )
 
 
-def list_org_users(api_endpoint, headers, org):
+def list_org_users(
+    api_endpoint: str, headers: dict[str, str], org: str
+) -> list[dict[str, Any]]:
     """
     List all users in an organization, using REST API with pagination.
     """
@@ -179,7 +185,9 @@ def list_org_users(api_endpoint, headers, org):
     return users
 
 
-def add_org_user(api_endpoint, headers, org, username):
+def add_org_user(
+    api_endpoint: str, headers: dict[str, str], org: str, username: str
+) -> None:
     """
     Invite a user to an organization.
     """
@@ -193,7 +201,9 @@ def add_org_user(api_endpoint, headers, org, username):
         LOG.debug(response.json())
 
 
-def list_org_roles(api_endpoint, headers, org):
+def list_org_roles(
+    api_endpoint: str, headers: dict[str, str], org: str
+) -> dict[str, Any]:
     """
     List all roles in an organization.
     """

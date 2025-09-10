@@ -17,8 +17,9 @@ Outputs:
 
 from argparse import ArgumentParser
 from typing import Iterable, List
-from src import enterprises, github_token
+from src import enterprises, util
 import logging
+
 
 LOG = logging.getLogger(__name__)
 
@@ -26,24 +27,24 @@ LOG = logging.getLogger(__name__)
 def add_args(parser: ArgumentParser) -> None:
     """Add arguments to the command line parser."""
     parser.add_argument(
-        "--api-url",
-        default="https://api.github.com/graphql",
-        help="GitHub GraphQL API endpoint (https://github-hostname-here/api/graphql for GHES, EMU or data residency)",
+        "enterprise_slug",
+        help="Enterprise slug (after /enterprises/ in the URL)",
+    )
+    parser.add_argument(
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
     )
     parser.add_argument(
         "--token-file",
         required=False,
         help="File containing a GitHub Personal Access Token with admin:enterprise and read:org scope (or use GITHUB_TOKEN)",
     )
-    parser.add_argument(
-        "--enterprise-slug",
-        required=True,
-        help="Enterprise slug (after /enterprises/ in the URL)",
-    )
+
     parser.add_argument(
         "--unmanaged-orgs",
         default="unmanaged_orgs.txt",
-        help="Path to newline-delimited list of organization IDs to demote from",
+        help="Path to newline-delimited list of organization IDs to demote from (default: unmanaged_orgs.txt)",
     )
     parser.add_argument(
         "--debug",
@@ -84,7 +85,9 @@ def main() -> None:
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-    github_pat = github_token.read_token(args.token_file)
+    github_pat = util.read_token(args.token_file)
+
+    api_url = util.graphql_api_url_from_server_url(args.github_url)
 
     if not github_pat:
         LOG.error("⨯ GitHub Personal Access Token not found")
@@ -95,11 +98,11 @@ def main() -> None:
     }
 
     enterprise_id = enterprises.get_enterprise_id(
-        args.api_url, args.enterprise_slug, headers
+        api_url, args.enterprise_slug, headers
     )
 
     unmanaged_orgs = read_unmanaged_org_ids(args.unmanaged_orgs)
-    demote_admin(args.api_url, headers, enterprise_id, unmanaged_orgs)
+    demote_admin(api_url, headers, enterprise_id, unmanaged_orgs)
 
 
 if __name__ == "__main__":  # pragma: no cover

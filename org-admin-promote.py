@@ -18,8 +18,10 @@ Outputs:
 
 from argparse import ArgumentParser
 from typing import List
-from src import enterprises, organizations, github_token
+from urllib.parse import urlparse
+from src import enterprises, organizations, util
 import logging
+
 
 LOG = logging.getLogger(__name__)
 
@@ -31,9 +33,9 @@ def add_args(parser: ArgumentParser) -> None:
         help="Enterprise slug (after /enterprises/ in URL)",
     )
     parser.add_argument(
-        "--api-url",
-        default="https://api.github.com/graphql",
-        help="GitHub GraphQL API endpoint (https://github-hostname-here/api/graphql for GHES, EMU or data residency)",
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
     )
     parser.add_argument(
         "--token-file",
@@ -43,12 +45,12 @@ def add_args(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--unmanaged-orgs",
         default="unmanaged_orgs.txt",
-        help="Output file for previously unmanaged organization IDs",
+        help="Output file for previously unmanaged organization IDs (default: unmanaged_orgs.txt)",
     )
     parser.add_argument(
         "--orgs-csv",
         default="all_orgs.csv",
-        help="Output CSV file listing all organizations in the enterprise",
+        help="Output CSV file listing all organizations in the enterprise (default: all_orgs.csv)",
     )
     parser.add_argument(
         "--debug",
@@ -119,14 +121,20 @@ def main() -> None:
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-    github_pat = github_token.read_token(args.token_file)
+    api_url = (
+        util.graphql_api_url_from_server_url(args.github_url)
+        if args.github_url
+        else "https://api.github.com/graphql"
+    )
+
+    github_pat = util.read_token(args.token_file)
     headers: dict[str, str] = {
         "Authorization": f"token {github_pat}",
     }
 
     if (
         promote_all(
-            args.api_url,
+            api_url,
             headers,
             args.enterprise_slug,
             args.unmanaged_orgs,
@@ -137,7 +145,7 @@ def main() -> None:
         return
 
     # Refresh and write all orgs CSV after promotions
-    orgs = organizations.list_orgs(args.api_url, args.enterprise_slug, headers)
+    orgs = organizations.list_orgs(api_url, args.enterprise_slug, headers)
     organizations.write_orgs_to_csv(orgs, args.orgs_csv)
 
 

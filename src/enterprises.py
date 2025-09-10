@@ -4,11 +4,14 @@
 This file holds enterprise-related functions
 """
 
+from typing import Any
 import requests
-from .headers import add_request_headers
+from .util import add_request_headers
 
 
-def get_enterprise_id(api_endpoint, enterprise_slug, headers):
+def get_enterprise_id(
+    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+) -> str:
     """
     Get the ID of an enterprise by its slug.
     """
@@ -30,7 +33,7 @@ def get_enterprise_id(api_endpoint, enterprise_slug, headers):
     return response.json()["data"]["enterprise"]["id"]
 
 
-def make_promote_mutation(enterprise_id, org_id, role):
+def make_promote_mutation(enterprise_id: str, org_id: str, role: str) -> str:
     """
     Create a GraphQL mutation to promote the Enterprise owner to owner in an organization.
     """
@@ -49,7 +52,13 @@ def make_promote_mutation(enterprise_id, org_id, role):
     )
 
 
-def promote_admin(api_endpoint, headers, enterprise_id, org_id, role):
+def promote_admin(
+    api_endpoint: str,
+    headers: dict[str, str],
+    enterprise_id: str,
+    org_id: str,
+    role: str,
+) -> dict[str, Any]:
     """
     Promote an enterprise admin to an organization owner.
     """

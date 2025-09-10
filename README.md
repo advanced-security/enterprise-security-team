@@ -26,12 +26,19 @@ You need to be an enterprise administrator to use these scripts!
     pip install -r requirements.txt
     ```
 
-1. Edit the inputs as arguments to the script as follows:
+1. Choose inputs as arguments to the script as follows:
 
-    - the API endpoint (for GHES, EMU, or data residency) in `--api-url`. For GHEC this is not required.
-    - Create a file and save your token there to read it, and call the script with `--token-file` argument, or call the script with the token in `GITHUB_TOKEN` in your environment.
-    - Add the enterprise slug to `--enterprise-slug`. This is string URL version of the enterprise identity.  It's easily available in the enterprise admin url (for cloud and server), e.g. `https://github.com/enterprises/ENTERPRISE-SLUG-HERE`.
-    - For the security manager team script, the list of orgs output by `org-admin-promote.py` in `--unmanaged-orgs` and the name of the security manager team and the team members to add, in `--team-name` and `--team-members`. If you are using GHES 3.15 or below, please use the `--legacy` flag to use the legacy security managers API.
+    - the server URL (for GHES, EMU, or data residency) in `--github-url`
+      - For GHEC this is not required.
+    - call the script with the correct GitHub PAT
+      - place it in `GITHUB_TOKEN` in your environment, or
+      - create a file and save your token there to read it, and call the script with the `--token-file` argument
+    - use the enterprise slug as the first argument in the promote/demote scripts
+      - this is string URL version of the enterprise identity.  It's available in the enterprise admin url (for cloud and server), e.g. `https://github.com/enterprises/ENTERPRISE-SLUG-HERE`.
+    - for the security manager team script:
+      - use the list of orgs output by `org-admin-promote.py` in `--unmanaged-orgs`
+      - put the name of the security manager team and the team members to add in `--team-name` and `--team-members`.
+      - If you are using GHES 3.15 or below, please use the `--legacy` flag to use the legacy security managers API.
 
 1. Run them in the following order:
 
@@ -41,31 +48,31 @@ You need to be an enterprise administrator to use these scripts!
 
 ## Assumptions
 
-- The security manager team isn't already an existing team that's using team sync [for enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/using-saml-for-enterprise-iam/managing-team-synchronization-for-organizations-in-your-enterprise) or [for organizations](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).  You may be able to edit the script a bit to make this work by adding an existing team to all orgs, but I wasn't going to dive deep into the weeds of identity management.
+- The security manager team isn't already an existing team that's using team sync [for enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/using-saml-for-enterprise-iam/managing-team-synchronization-for-organizations-in-your-enterprise) or [for organizations](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
 
 ## Any extra info?
 
 This is what a successful run looks like.  Here's the inputs:
 
 - The enterprise admin is named `ghe-admin`.
-- The security team is named `spy-stuff` and has two members `luigi` and `hubot`.
+- The security team is named `security-managers` (the default) and has two members `luigi` and `hubot`.
 - The organizations break down as such:
   - `acme` org was already configured correctly.
   - `testorg-00001` needed the team created, with `ghe-admin` removed and `luigi` and `hubot` added.
   - `testorg-00002` was already created
 
 ```console
-$ ./manage-sec-team.py 
-Team spy-stuff updated as a security manager for acme!
-Creating team spy-stuff
-Team spy-stuff updated as a security manager for testorg-00001!
-Removing ghe-admin from spy-stuff
-Adding luigi to spy-stuff
-Adding hubot to spy-stuff
-Creating team spy-stuff
-Team spy-stuff updated as a security manager for testorg-00002!
-Removing ghe-admin from spy-stuff
-Team spy-stuff updated as a security manager for testorg-00003!
+$ ./manage-sec-team.py --sec-team-members luigi hubot
+✓ Team security-managers updated as a security manager for acme
+Creating team security-managers
+✓ Team security-managers updated as a security manager for testorg-00001
+Removing ghe-admin from security-managers
+Adding luigi to security-managers
+Adding hubot to security-managers
+Creating team security-managers
+✓ Team security-managers updated as a security manager for testorg-00002
+Removing ghe-admin from security-managers
+✓ Team security-managers updated as a security manager for testorg-00003
 ```
 
 ## Architecture Footnotes
