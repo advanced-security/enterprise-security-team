@@ -1,98 +1,265 @@
 #!/usr/bin/env python3
 
 """
-This script manages a team in each organization that the user running this owns
+Manages a team in each organization that the user running this owns
 within the enterprise.  It is meant to be run after `org-admin-promote.py` to
 create/update a team with the "security manager" role.
 
 Inputs:
-- GitHub API endpoint
-- PAT with `enterprise:admin` scope, read from a file called `token.txt`
+- GitHub API endpoint (defaults to https://api.github.com)
+- PAT with `admin:enterprise` and `admin:org` scope, read from a named file (or GITHUB_TOKEN if that is not provided)
 - `all_orgs.csv` file from `org-admin-promote.py`
 - Team name for the security manager team
 - List of security manager team members by handle
 
 Outputs:
-- Prints the org names the enterprise admin was removed from to `stdout`
+- Prints the members that were added to and removed from the security managers team
 """
 
-# Imports
+from argparse import ArgumentParser
+from typing import Any
 from defusedcsv import csv
-from src import teams, organizations
-
-# Inputs
-api_url = "https://api.github.com"  # for GHEC
-# api_url = "https://GHES-HOSTNAME-HERE/api/v3"  # for GHES/GHAE
-
-# github_pat = "GITHUB-PAT-HERE"  # if you want to set that manually
-with open("token.txt", "r") as f:
-    github_pat = f.read().strip()
-    f.close()
-
-# List of organizations (filename)
-org_list = "all_orgs.csv"
-
-# Team name for the security manager team
-sec_team_name = "security-managers"
-
-# List of security manager team members by handle
-sec_team_members = ["teammate1", "teammate2", "teammate3"]
-
-# Read in the org list
-with open(org_list, "r") as f:
-    orgs = list(csv.DictReader(f))
-
-# Set up the headers
-headers = {
-    "Authorization": "token {}".format(github_pat),
-    "Accept": "application/vnd.github.v3+json",
-}
+from src import teams, organizations, util
+import logging
 
 
-if __name__ == "__main__":
+LOG = logging.getLogger(__name__)
+
+
+def add_args(parser) -> None:
+    """Add arguments to the command line parser."""
+    parser.add_argument(
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
+    )
+    parser.add_argument(
+        "--token-file",
+        required=False,
+        help="GitHub Personal Access Token file (or use GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--org-list",
+        default="all_orgs.csv",
+        help="CSV file of organizations (default: all_orgs.csv)",
+    )
+    parser.add_argument(
+        "--sec-team-name",
+        default="security-managers",
+        help="Security team name (default: security-managers)",
+    )
+    parser.add_argument("--sec-team-members", nargs="*", help="Security team members")
+    parser.add_argument(
+        "--sec-team-members-file", required=False, help="Security team members file"
+    )
+    parser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Use legacy API endpoints to manage the security managers",
+    )
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug logging",
+    )
+
+
+def make_security_managers_team(
+    org_name: str,
+    sec_team_name: str,
+    api_url: str,
+    headers: dict[str, str],
+    legacy=False,
+) -> None:
+    """Create or update the security managers team in the specified organization."""
+    security_manager_role_id: str | None = None
+
+    if not legacy:
+        org_roles: dict[str, Any] = organizations.list_org_roles(
+            api_url, headers, org_name
+        )
+
+        # Check if the "security manager" role exists
+        if "roles" not in org_roles:
+            LOG.error("⨯ Malformed response from GitHub API")
+            return
+
+        security_manager_role_id_list = [
+            role["id"]
+            for role in org_roles["roles"]
+            if role["name"] == "security_manager"
+        ]
+        if not security_manager_role_id_list:
+            LOG.error(
+                "⨯ Organization {} does not have a security manager role".format(
+                    org_name
+                )
+            )
+            return
+        security_manager_role_id = security_manager_role_id_list[0]
+
+    # Get the list of teams
+    teams_info = teams.list_teams(api_url, headers, org_name)
+    teams_list = [team["name"] for team in teams_info]
+
+    # Create the team if it doesn't exist
+    if sec_team_name not in teams_list:
+        LOG.info("Creating team {}".format(sec_team_name))
+        try:
+            teams.create_team(api_url, headers, org_name, sec_team_name)
+        except Exception as e:
+            LOG.error("⨯ Failed to create team {}: {}".format(sec_team_name, e))
+
+    # Update that team to have the "security manager" role
+    try:
+        # only update it if the team does not already have the role
+        if not teams.has_team_role(
+            api_url,
+            headers,
+            org_name,
+            sec_team_name,
+            security_manager_role_id,
+            legacy=legacy,
+        ):
+            teams.change_team_role(
+                api_url,
+                headers,
+                org_name,
+                sec_team_name,
+                security_manager_role_id,
+                legacy=legacy,
+            )
+            LOG.info(
+                "✓ Team {} updated as a security manager for {}".format(
+                    sec_team_name, org_name
+                )
+            )
+        else:
+            LOG.debug(
+                "✓ Team {} already has the security manager role for {}".format(
+                    sec_team_name, org_name
+                )
+            )
+    except Exception as e:
+        LOG.error("⨯ Failed to update team {}: {}".format(sec_team_name, e))
+        if LOG.getEffectiveLevel() == logging.DEBUG:
+            raise e
+
+
+def add_security_managers_to_team(
+    org_name: str,
+    sec_team_name: str,
+    sec_team_members: list[str],
+    api_url: str,
+    headers: dict[str, str],
+) -> None:
+    """Add security managers to the specified team in the organization."""
+    # Get the list of org members, adding the missing ones to the org
+    org_members = organizations.list_org_users(api_url, headers, org_name)
+    org_members_list = [member["login"] for member in org_members]
+    for username in sec_team_members:
+        if username not in org_members_list:
+            LOG.info("Adding {} to {}".format(username, org_name))
+            try:
+                organizations.add_org_user(api_url, headers, org_name, username)
+            except Exception as e:
+                LOG.error(
+                    "⨯ Failed to add user {} to org {}: {}".format(
+                        username, org_name, e
+                    )
+                )
+                return
+
+    # Get the list of team members, adding the missing ones to the team and removing the extra ones
+    team_members = teams.list_team_members(api_url, headers, org_name, sec_team_name)
+    team_members_list = [member["login"] for member in team_members]
+    for username in team_members_list:
+        if username not in sec_team_members:
+            LOG.info("Removing {} from {}".format(username, sec_team_name))
+            try:
+                teams.remove_team_member(
+                    api_url, headers, org_name, sec_team_name, username
+                )
+            except Exception as e:
+                LOG.error(
+                    "⨯ Failed to remove user {} from team {}: {}".format(
+                        username, sec_team_name, e
+                    )
+                )
+                return
+    for username in sec_team_members:
+        if username not in team_members_list:
+            LOG.info("Adding {} to {}".format(username, sec_team_name))
+            try:
+                teams.add_team_member(
+                    api_url, headers, org_name, sec_team_name, username
+                )
+            except Exception as e:
+                LOG.error(
+                    "⨯ Failed to add user {} to team {}: {}".format(
+                        username, sec_team_name, e
+                    )
+                )
+                return
+        else:
+            LOG.debug(
+                "✓ User {} is already a member of {}".format(username, sec_team_name)
+            )
+
+
+def main() -> None:
+    """Command line entrypoint."""
+    parser = ArgumentParser(description=__doc__)
+    add_args(parser)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+
+    # Read in the org list
+    with open(args.org_list, "r") as f:
+        orgs = list(csv.DictReader(f))
+
+    github_pat = util.read_token(args.token_file)
+
+    if not github_pat:
+        LOG.error("⨯ GitHub Personal Access Token not found")
+        return
+
+    if args.sec_team_members and args.sec_team_members_file:
+        LOG.error("⨯ Please use either --sec-team-members or --sec-team-members-file")
+        return
+
+    sec_team_members = []
+    if args.sec_team_members_file:
+        with open(args.sec_team_members_file, "r") as f:
+            sec_team_members = [line.strip() for line in f if line.strip()]
+    elif args.sec_team_members:
+        sec_team_members = args.sec_team_members
+    else:
+        LOG.error(
+            "⨯ Please provide either --sec-team-members or --sec-team-members-file"
+        )
+        return
+
+    api_url = util.rest_api_url_from_server_url(args.github_url)
+
+    # Set up the headers
+    headers = {
+        "Authorization": "token {}".format(github_pat),
+    }
+
     # For each organization, do
     for org in orgs:
         org_name = org["login"]
 
-        # Get the list of teams
-        teams_info = teams.list_teams(api_url, headers, org_name)
-        teams_list = [team["name"] for team in teams_info]
-
-        # Create the team if it doesn't exist
-        if sec_team_name not in teams_list:
-            print("Creating team {}".format(sec_team_name))
-            teams.create_team(api_url, headers, org_name, sec_team_name)
-
-        # Update that team to have the "security manager" role
-        teams.change_team_role(api_url, headers, org_name, sec_team_name)
-        print(
-            "Team {} updated as a security manager for {}!".format(
-                sec_team_name, org_name
-            )
+        make_security_managers_team(
+            org_name, args.sec_team_name, api_url, headers, legacy=args.legacy
+        )
+        add_security_managers_to_team(
+            org_name, args.sec_team_name, sec_team_members, api_url, headers
         )
 
-        # Get the list of org members, adding the missing ones to the org
-        org_members = organizations.list_org_users(api_url, headers, org_name)
-        org_members_list = [member["login"] for member in org_members]
-        for username in sec_team_members:
-            if username not in org_members_list:
-                print("Adding {} to {}".format(username, org_name))
-                organizations.add_org_user(api_url, headers, org_name, username)
 
-        # Get the list of team members, adding the missing ones to the team and removing the extra ones
-        team_members = teams.list_team_members(
-            api_url, headers, org_name, sec_team_name
-        )
-        team_members_list = [member["login"] for member in team_members]
-        for username in team_members_list:
-            if username not in sec_team_members:
-                print("Removing {} from {}".format(username, sec_team_name))
-                teams.remove_team_member(
-                    api_url, headers, org_name, sec_team_name, username
-                )
-        for username in sec_team_members:
-            if username not in team_members_list:
-                print("Adding {} to {}".format(username, sec_team_name))
-                teams.add_team_member(
-                    api_url, headers, org_name, sec_team_name, username
-                )
+if __name__ == "__main__":
+    main()

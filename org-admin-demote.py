@@ -1,62 +1,109 @@
 #!/usr/bin/env python3
 
 """
-This script removes the enterprise admin running this script from all of the 
-organizations listed in `unmanaged_orgs.csv`.  It is meant to be run after
-`org-admin-promote.py` to remove the enterprise admin from all organizations
-that they were promoted to an owner of.
+Removes (demotes) the enterprise admin running this script from each organization
+listed in a file (default: unmanaged_orgs.txt). It is meant to be run after
+`org-admin-promote.py` to undo temporary organization ownership grants.
 
 Inputs:
-- GitHub API endpoint
-- PAT with `enterprise:admin` scope, read from a file called `token.txt`
-- Enterprise slug (the string that comes after `/enterprises/` in the URL)
-- `unmanaged_orgs.csv` file from `org-admin-promote.py`
+- GraphQL API endpoint (defaults to https://api.github.com/graphql)
+- PAT with `admin:enterprise` and `admin:org` scope, provided via --token-file or $GITHUB_TOKEN
+- Enterprise slug (the segment after /enterprises/ in the URL)
+- A newline-delimited file of organization IDs (default: unmanaged_orgs.txt)
 
 Outputs:
-- Prints the org names the enterprise admin was removed from to `stdout`
+- Prints progress lines for each organization demotion
 """
 
-# Imports
-from src import enterprises
+from argparse import ArgumentParser
+from typing import Iterable, List
+from src import enterprises, util
+import logging
 
-# Set API endpoint
-graphql_endpoint = "https://api.github.com/graphql"  # for GHEC
-# graphql_endpoint = "https://GHES-HOSTNAME-HERE/api/graphql" # for GHES/GHAE
 
-# github_pat = "GITHUB-PAT-HERE"  # if you want to set that manually
-with open("token.txt", "r") as f:
-    github_pat = f.read().strip()
-    f.close()
+LOG = logging.getLogger(__name__)
 
-enterprise_slug = "ENTERPRISE-SLUG-HERE"
 
-# Set up the headers
-headers = {
-    "Authorization": "token {}".format(github_pat),
-    "Accept": "application/vnd.github.v3+json",
-}
-
-# Do the things!
-if __name__ == "__main__":
-    # Get the enterprise ID
-    enterprise_id = enterprises.get_enterprise_id(
-        graphql_endpoint, enterprise_slug, headers
+def add_args(parser: ArgumentParser) -> None:
+    """Add arguments to the command line parser."""
+    parser.add_argument(
+        "enterprise_slug",
+        help="Enterprise slug (after /enterprises/ in the URL)",
+    )
+    parser.add_argument(
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
+    )
+    parser.add_argument(
+        "--token-file",
+        required=False,
+        help="File containing a GitHub Personal Access Token with admin:enterprise and read:org scope (or use GITHUB_TOKEN)",
     )
 
-    # Get the list of unmanaged orgs
-    with open("unmanaged_orgs.txt", "r") as f:
-        unmanaged_orgs = f.read().splitlines()
+    parser.add_argument(
+        "--unmanaged-orgs",
+        default="unmanaged_orgs.txt",
+        help="Path to newline-delimited list of organization IDs to demote from (default: unmanaged_orgs.txt)",
+    )
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug logging",
+    )
 
-    # Print the total count of orgs to demote admin from
-    print("Total count of orgs to demote admin from: {}".format(len(unmanaged_orgs)))
 
-    # Remove the enterprise admin running this from all of the unmanaged orgs
-    for i, org_id in enumerate(unmanaged_orgs):
-        print(
+def read_unmanaged_org_ids(path: str) -> List[str]:
+    """Return a list of non-empty lines from the unmanaged orgs file."""
+    with open(path, "r", encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip()]
+
+
+def demote_admin(
+    api_url: str, headers: dict[str, str], enterprise_id: str, org_ids: Iterable[str]
+) -> None:
+    """Demote the enterprise admin from each organization ID provided."""
+    org_ids_list = list(org_ids)
+    LOG.info("Total count of orgs to demote admin from: {}".format(len(org_ids_list)))
+    for i, org_id in enumerate(org_ids_list):
+        LOG.info(
             "Removing from organization: {} [{}/{}]".format(
-                org_id, i + 1, len(unmanaged_orgs)
+                org_id, i + 1, len(org_ids_list)
             )
         )
         enterprises.promote_admin(
-            graphql_endpoint, headers, enterprise_id, org_id, "UNAFFILIATED"
+            api_url, headers, enterprise_id, org_id, "UNAFFILIATED"
         )
+
+
+def main() -> None:
+    """Command line entrypoint."""
+    parser = ArgumentParser(description=__doc__)
+    add_args(parser)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+
+    github_pat = util.read_token(args.token_file)
+
+    api_url = util.graphql_api_url_from_server_url(args.github_url)
+
+    if not github_pat:
+        LOG.error("⨯ GitHub Personal Access Token not found")
+        return
+
+    headers: dict[str, str] = {
+        "Authorization": f"token {github_pat}",
+    }
+
+    enterprise_id = enterprises.get_enterprise_id(
+        api_url, args.enterprise_slug, headers
+    )
+
+    unmanaged_orgs = read_unmanaged_org_ids(args.unmanaged_orgs)
+    demote_admin(api_url, headers, enterprise_id, unmanaged_orgs)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

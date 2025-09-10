@@ -1,98 +1,153 @@
 #!/usr/bin/env python3
 
 """
-This script "replaces" `ghe-org-admin-promote` from GHES to be able to also run 
-in GHEC/GHAE.  It promotes the enterprise admin running this script to an 
-organization owner of all organizations in the enterprise.
+Promotes the enterprise admin running this script to owner on every organization
+in the specified enterprise. Replaces the legacy `ghe-org-admin-promote` tool and
+works across GHES / GHEC / data residency / EMU by using GraphQL API.
 
 Inputs:
-- GitHub API endpoint
-- PAT with `enterprise:admin` scope, read from a file called `token.txt`
-- Enterprise slug (the string that comes after `/enterprises/` in the URL)
+- GraphQL API endpoint (default: https://api.github.com/graphql)
+- PAT with `admin:enterprise` and `admin:org` scope via --token-file or env var GITHUB_TOKEN
+- Enterprise slug
 
 Outputs:
-- Total count of orgs to `stdout`
-- Total count of orgs that the enterprise owner now owns to `stdout`
-- A text file of all (previously) unmanaged orgs to `unmanaged_orgs.txt`
-- A CSV of all organizations in the enterprise to `orgs.csv`
+- Summary counts printed to stdout
+- Newline-delimited list of previously unmanaged org IDs (default: unmanaged_orgs.txt)
+- CSV of all organizations (default: all_orgs.csv)
 """
 
-# Imports
-from src import enterprises, organizations
+from argparse import ArgumentParser
+from typing import List
+from urllib.parse import urlparse
+from src import enterprises, organizations, util
+import logging
 
-# Set API endpoint
-graphql_endpoint = "https://api.github.com/graphql"  # for GHEC
-# graphql_endpoint = "https://GHES-HOSTNAME-HERE/api/graphql" # for GHES/GHAE
+
+LOG = logging.getLogger(__name__)
 
 
-# github_pat = "GITHUB-PAT-HERE"  # if you want to set that manually
-with open("token.txt", "r") as f:
-    github_pat = f.read().strip()
-    f.close()
-
-enterprise_slug = "ENTERPRISE-SLUG-HERE"
-
-# Set up the headers
-headers = {
-    "Authorization": "token {}".format(github_pat),
-    "Accept": "application/vnd.github.v3+json",
-}
-
-# Do the things!
-if __name__ == "__main__":
-    # Get the total count of organizations
-    total_org_count = organizations.get_total_count(
-        graphql_endpoint, enterprise_slug, headers
+def add_args(parser: ArgumentParser) -> None:
+    """Add arguments to the command line parser."""
+    parser.add_argument(
+        "enterprise_slug",
+        help="Enterprise slug (after /enterprises/ in URL)",
+    )
+    parser.add_argument(
+        "--github-url",
+        required=False,
+        help="GitHub URL for GHES, EMU or data residency",
+    )
+    parser.add_argument(
+        "--token-file",
+        required=False,
+        help="Path to file containing a PAT with admin:enterprise and read:org scope (fallback: GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--unmanaged-orgs",
+        default="unmanaged_orgs.txt",
+        help="Output file for previously unmanaged organization IDs (default: unmanaged_orgs.txt)",
+    )
+    parser.add_argument(
+        "--orgs-csv",
+        default="all_orgs.csv",
+        help="Output CSV file listing all organizations in the enterprise (default: all_orgs.csv)",
+    )
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug logging",
     )
 
-    # Get the organization data, make sure it's the same length as the total count
-    orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
-    assert len(orgs) == total_org_count
 
-    # Print a little data
-    print(
+def write_unmanaged_orgs(path: str, unmanaged_org_ids: List[str]) -> None:
+    """
+    Write the list of unmanaged organization IDs to a file.
+    """
+    with open(path, "w", encoding="utf-8") as f:
+        for oid in unmanaged_org_ids:
+            print(oid, file=f)
+
+
+def promote_all(
+    api_url: str, headers: dict[str, str], enterprise_slug: str, unmanaged_out: str
+) -> List[str] | None:
+    """
+    Promote the enterprise admin to owner on all unmanaged organizations.
+    """
+    total_org_count = organizations.get_total_count(api_url, enterprise_slug, headers)
+    if total_org_count == 0:
+        LOG.warning("⚠️ No organizations found.")
+        return []
+    orgs = organizations.list_orgs(api_url, enterprise_slug, headers)
+    if len(orgs) != total_org_count:
+        LOG.error(
+            "⨯ Total count of organizations returned by the query is different from the expected count"
+        )
+        return None
+    LOG.info(
         "Total count of organizations returned by the query is: {}".format(
             total_org_count
         )
     )
-
-    # Get the enterprise ID
-    enterprise_id = enterprises.get_enterprise_id(
-        graphql_endpoint, enterprise_slug, headers
-    )
-
-    # Promote enterprise admin running this to an organization owner of all orgs
+    enterprise_id = enterprises.get_enterprise_id(api_url, enterprise_slug, headers)
     unmanaged_orgs = [
         org["node"]["id"] for org in orgs if not org["node"]["viewerCanAdminister"]
     ]
-    print(
+    LOG.info(
         "Total count of unmanaged organizations to be promoted on: {}".format(
             len(unmanaged_orgs)
         )
     )
     for i, org_id in enumerate(unmanaged_orgs):
-        print(
+        LOG.info(
             "Promoting to owner on organization: {} [{}/{}]".format(
                 org_id, i + 1, len(unmanaged_orgs)
             )
         )
-        enterprises.promote_admin(
-            graphql_endpoint, headers, enterprise_id, org_id, "OWNER"
-        )
-
-    with open("unmanaged_orgs.txt", "w") as f:
-        for i in unmanaged_orgs:
-            f.write(i)
-            f.write("\n")
-        f.close()
-
-    # Print a little data
-    print(
+        enterprises.promote_admin(api_url, headers, enterprise_id, org_id, "OWNER")
+    write_unmanaged_orgs(unmanaged_out, unmanaged_orgs)
+    LOG.info(
         "Total count of newly managed organizations is: {}".format(len(unmanaged_orgs))
     )
+    return unmanaged_orgs
 
-    # Refresh that data
-    orgs = organizations.list_orgs(graphql_endpoint, enterprise_slug, headers)
 
-    # Write the orgs to a CSV
-    organizations.write_orgs_to_csv(orgs, "all_orgs.csv")
+def main() -> None:
+    """Command line entrypoint."""
+    parser = ArgumentParser(description=__doc__)
+    add_args(parser)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+
+    api_url = (
+        util.graphql_api_url_from_server_url(args.github_url)
+        if args.github_url
+        else "https://api.github.com/graphql"
+    )
+
+    github_pat = util.read_token(args.token_file)
+    headers: dict[str, str] = {
+        "Authorization": f"token {github_pat}",
+    }
+
+    if (
+        promote_all(
+            api_url,
+            headers,
+            args.enterprise_slug,
+            args.unmanaged_orgs,
+        )
+        is None
+    ):
+        LOG.error("⨯ Promotion failed")
+        return
+
+    # Refresh and write all orgs CSV after promotions
+    orgs = organizations.list_orgs(api_url, args.enterprise_slug, headers)
+    organizations.write_orgs_to_csv(orgs, args.orgs_csv)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
