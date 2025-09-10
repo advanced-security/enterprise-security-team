@@ -11,6 +11,9 @@ jobs:
     name: Lint Code Base
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
@@ -19,7 +22,7 @@ jobs:
           fetch-depth: 0
 
       - name: Lint Code Base
-        uses: super-linter/super-linter/slim@v8
+        uses: super-linter/super-linter/slim@ffde3b2b33b745cb612d787f669ef9442b1339a6 # v8.1.0
         env:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
