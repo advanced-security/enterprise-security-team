@@ -4,7 +4,10 @@ These scripts provide an emulated Enterprise security manager team to GitHub Ent
 
 The scripts will give you a list of all organizations in the enterprise as a CSV to work with programmatically, add you to all organizations as an owner, and can create/manage a team with the security manager role to see all GitHub Advanced Security alerts throughout the entire enterprise _without_ having admin rights to that code.
 
-:information_source:  This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
+> [!NOTE]
+> This is an _unofficial_ tool created by Field Security Specialists, and is not officially supported by GitHub.
+
+:information_source: This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
 
 ## Scripts
 
@@ -14,10 +17,11 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
 
 ## How to use it
 
-You need to be an enterprise administrator to use these scripts!
+> [!NOTE]
+> You need to be an Enterprise administrator to use these scripts
 
 1. Read :point_up: and decide what you want to do.
-1. Create a personal access token ([directions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)) with the `enterprise:admin` scope.
+1. Create a [classic personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) with the `admin:enterprise` and `admin:org` scopes using an Enterprise administrator account.
 1. Clone this repository to a machine that has Python 3 installed.
 1. Install the requirements.
 
@@ -49,6 +53,7 @@ You need to be an enterprise administrator to use these scripts!
 ## Assumptions
 
 - The security manager team isn't already an existing team that's using team sync [for enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/using-saml-for-enterprise-iam/managing-team-synchronization-for-organizations-in-your-enterprise) or [for organizations](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
+- The Enterprise admin account doing this is not intended to be part of the security managers team you are creating (that would conflict with the demotion script)
 
 ## Any extra info?
 
