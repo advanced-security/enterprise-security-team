@@ -161,7 +161,7 @@ def add_security_managers_to_team(
     sec_team_members: list[str],
     api_url: str,
     headers: dict[str, str],
-    progress: bool = False
+    progress: bool = False,
 ) -> None:
     """Add security managers to the specified team in the organization."""
     # Get the list of org members, adding the missing ones to the org
@@ -270,10 +270,20 @@ def main() -> None:
         org_name = org["login"]
 
         make_security_managers_team(
-            org_name, args.sec_team_name, api_url, headers, legacy=args.legacy, progress=args.progress
+            org_name,
+            args.sec_team_name,
+            api_url,
+            headers,
+            legacy=args.legacy,
+            progress=args.progress,
         )
         add_security_managers_to_team(
-            org_name, args.sec_team_name, sec_team_members, api_url, headers, progress=args.progress
+            org_name,
+            args.sec_team_name,
+            sec_team_members,
+            api_url,
+            headers,
+            progress=args.progress,
         )
 
 

@@ -60,7 +60,11 @@ def add_args(parser: ArgumentParser) -> None:
 
 
 def demote_admin(
-    api_url: str, headers: dict[str, str], enterprise_id: str, org_ids: Iterable[str], progress: bool = False
+    api_url: str,
+    headers: dict[str, str],
+    enterprise_id: str,
+    org_ids: Iterable[str],
+    progress: bool = False,
 ) -> None:
     """Demote the enterprise admin from each organization ID provided."""
     org_ids_list = list(org_ids)

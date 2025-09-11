@@ -173,7 +173,7 @@ def main() -> None:
             args.enterprise_slug,
             orgs_subset,
             args.unmanaged_orgs,
-            args.progress
+            args.progress,
         )
         is None
     ):
