@@ -3,18 +3,18 @@
 > [!NOTE]
 > This is an _unofficial_ tool created by Field Security Specialists, and is not officially supported by GitHub.
 
-These scripts provide an emulated Enterprise security manager team to GitHub Enterprise (cloud or server) administrators by using the existing organization security manager role.
+These scripts provide an emulated Enterprise security manager team to GitHub Enterprise (Cloud or Server) administrators by using the existing organization Security Manager role.
 
-The scripts will give you a list of all organizations in the enterprise as a CSV to work with programmatically, add you to all organizations as an owner, and can create/manage a team with the security manager role to see all GitHub Advanced Security alerts throughout the entire enterprise _without_ having admin rights to that code.
+The scripts will give you a list of all organizations in the enterprise as a CSV to work with programmatically, add you to some or all organizations as an owner, and can create/manage a team with the Security Manager role to see all GitHub Advanced Security alerts throughout the entire enterprise _without_ having admin rights to that code.
 
 > [!NOTE]
 > This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
 
 ## Scripts
 
-1. [`org-admin-promote.py`](/org-admin-promote.py) replaces some of the functionality of [`ghe-org-admin-promote`](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/command-line-utilities#ghe-org-admin-promote), a built-in shell command on GHES that promotes an enterprise admin to own all organizations in the enterprise.  It also outputs a CSV file similar to the `all_organizations.csv` [report](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/site-admin-dashboard#reports), to better inventory organizations.
+1. [`org-admin-promote.py`](/org-admin-promote.py) replaces some of the functionality of [`ghe-org-admin-promote`](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/command-line-utilities#ghe-org-admin-promote), a built-in shell command on GHES that promotes an enterprise admin to own some/all organizations in the enterprise. It also outputs a CSV file similar to the `all_organizations.csv` [report](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/site-admin-dashboard#reports), to better inventory organizations.
 1. [`manage-sec-team.py`](/manage-sec-team.py) creates a team in each organization, assigns it the security manager role, and then adds the people you want to that team (and removes the rest).
-1. [`org-admin-demote.py`](/org-admin-demote.py) takes the text file of orgs that the user wasn't already an owner of and "un-does" that promotion to org owner.  The goal is to keep the admin account's notifications uncluttered, but running this is totally optional.
+1. [`org-admin-demote.py`](/org-admin-demote.py) takes the text file of orgs that the user wasn't already an owner of and "un-does" that promotion to org owner. The goal is to keep the admin account's notifications uncluttered, but running this is totally optional.
 
 ## How to use it
 
@@ -63,7 +63,7 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
 - The security manager team isn't already an existing team that's using team sync [for enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/using-saml-for-enterprise-iam/managing-team-synchronization-for-organizations-in-your-enterprise) or [for organizations](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
 - The Enterprise admin account doing this is not intended to be part of the security managers team you are creating (that would conflict with the demotion script)
 
-## Any extra info?
+## Example
 
 This is what a successful run looks like.  Here's the inputs:
 
@@ -72,10 +72,11 @@ This is what a successful run looks like.  Here's the inputs:
 - The organizations break down as such:
   - `acme` org was already configured correctly.
   - `testorg-00001` needed the team created, with `ghe-admin` removed and `luigi` and `hubot` added.
-  - `testorg-00002` was already created
+  - `testorg-00002` was already created.
+- We've used the `--progress` flag
 
 ```console
-$ ./manage-sec-team.py --sec-team-members luigi hubot
+$ ./manage-sec-team.py --sec-team-members luigi hubot --progress
 ✓ Team security-managers updated as a security manager for acme
 Creating team security-managers
 ✓ Team security-managers updated as a security manager for testorg-00001
@@ -92,8 +93,8 @@ Removing ghe-admin from security-managers
 
 - Scripts that do things are in the root directory.
 - Functions that do small parts are in `/src`, grouped roughly by what part of GitHub they work on.
-- All Python code is formatted with [black](https://black.readthedocs.io/en/stable/) because it's simple and beautiful and no one needs to think about style.
-- Python dependencies are minimal by default.  There are two, both kept up-to-date with [Dependabot](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/about-dependabot-version-updates).  You can [check out the config file](.github/dependabot.yml) if you'd like.
-  - [requests](https://pypi.org/project/requests/) is a simple and extremely popular HTTP library.
-  - [defusedcsv](https://github.com/raphaelm/defusedcsv) is used over CSV to mitigate potential spreadsheet application exploitations based on how it processes user-generated data.  OWASP has [written much more about CSV injection attacks on their website](https://owasp.org/www-community/attacks/CSV_Injection).
-- The CSV files and TXT files are in the `.gitignore` file to not be accidentally committed into the repo.
+- Python code is formatted with [black](https://black.readthedocs.io/en/stable/).
+- Python dependencies are minimal by default. There are two:
+  - [requests](https://pypi.org/project/requests/) is a simple and popular HTTP library.
+  - [defusedcsv](https://github.com/raphaelm/defusedcsv) is used over `csv` to mitigate spreadsheet application exploitation in older versions.
+- The `.csv` files and `.txt` files are in the `.gitignore` file to avoid accidental commits into the repo.
