@@ -7,7 +7,8 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
 > [!NOTE]
 > This is an _unofficial_ tool created by Field Security Specialists, and is not officially supported by GitHub.
 
-:information_source: This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
+> [!NOTE]
+> This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
 
 ## Scripts
 
@@ -30,19 +31,26 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
     pip install -r requirements.txt
     ```
 
-1. Choose inputs as arguments to the script as follows:
+1. Choose inputs as arguments to the scripts as follows:
 
-    - the server URL (for GHES, EMU, or data residency) in `--github-url`
+    - The server URL (for GHES, EMU, or data residency) in `--github-url`.
       - For GHEC this is not required.
-    - call the script with the correct GitHub PAT
-      - place it in `GITHUB_TOKEN` in your environment, or
-      - create a file and save your token there to read it, and call the script with the `--token-file` argument
-    - use the enterprise slug as the first argument in the promote/demote scripts
-      - this is string URL version of the enterprise identity.  It's available in the enterprise admin url (for cloud and server), e.g. `https://github.com/enterprises/ENTERPRISE-SLUG-HERE`.
-    - for the security manager team script:
-      - use the list of orgs output by `org-admin-promote.py` in `--unmanaged-orgs`
-      - put the name of the security manager team and the team members to add in `--team-name` and `--team-members`.
-      - If you are using GHES 3.15 or below, please use the `--legacy` flag to use the legacy security managers API.
+    - Call the scripts with the correct GitHub PAT:
+      - Place it in `GITHUB_TOKEN` in your environment, or
+      - create a file and save your token there to read it, and call the script with the `--token-file` argument.
+    - See progress with the `--progress` flag.
+    - Promote/demote scripts:
+      - Limit the promotion to a subset of organization slugs/names using the `--orgs` or `--orgs-file` arguments.
+        - For `--orgs/-o`, list them space separated after the argument.
+        - For `--orgs-file/-f`, put a new-line separated list of organizations in a file and provide the path.
+      - Use the enterprise slug as the first argument:
+        - This is string URL version of the enterprise identity. It's available in the enterprise admin url (for cloud and server), e.g. `https://github.com/enterprises/ENTERPRISE-SLUG-HERE`.
+      - By default, a list of all of the organizations in scope, and the unmanaged set, will be output to `all_orgs.csv` and `unmanaged_orgs.txt` respectively.
+        - You can use the `--orgs-csv` and `--unmanaged-orgs` arguments to place these elsewhere.
+    - Security manager team script:
+      - Put the name of the security manager team and the team members to add in `--team-name` and `--team-members`.
+      - If you are using GHES 3.15 or below, use the `--legacy` flag to use the legacy security managers API.
+      - Use the list of orgs output by `org-admin-promote.py` in `--unmanaged-orgs`, if you changed the output path.
 
 1. Run them in the following order:
 

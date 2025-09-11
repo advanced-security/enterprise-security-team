@@ -33,6 +33,19 @@ def add_args(parser: ArgumentParser) -> None:
         help="Enterprise slug (after /enterprises/ in URL)",
     )
     parser.add_argument(
+        "--orgs",
+        "-o",
+        nargs="*",
+        required=False,
+        help="List of organization slugs to promote on (default: all organizations)",
+    )
+    parser.add_argument(
+        "--orgs-file",
+        "-f",
+        required=False,
+        help="Path to file containing organization slugs to promote - line separated (default: all organizations)",
+    )
+    parser.add_argument(
         "--github-url",
         required=False,
         help="GitHub URL for GHES, EMU or data residency",
@@ -53,6 +66,12 @@ def add_args(parser: ArgumentParser) -> None:
         help="Output CSV file listing all organizations in the enterprise (default: all_orgs.csv)",
     )
     parser.add_argument(
+        "--progress",
+        "-p",
+        action="store_true",
+        help="Show progress during promotion",
+    )
+    parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
@@ -70,10 +89,17 @@ def write_unmanaged_orgs(path: str, unmanaged_org_ids: List[str]) -> None:
 
 
 def promote_all(
-    api_url: str, headers: dict[str, str], enterprise_slug: str, unmanaged_out: str
+    api_url: str,
+    headers: dict[str, str],
+    enterprise_slug: str,
+    orgs_subset: set[str] | None,
+    unmanaged_out: str,
+    progress: bool = False,
 ) -> List[str] | None:
     """
     Promote the enterprise admin to owner on all unmanaged organizations.
+
+    If a subset of organizations is provided, only attempt to promote on those; otherwise, try on all organizations.
     """
     total_org_count = organizations.get_total_count(api_url, enterprise_slug, headers)
     if total_org_count == 0:
@@ -85,31 +111,32 @@ def promote_all(
             "⨯ Total count of organizations returned by the query is different from the expected count"
         )
         return None
-    LOG.info(
-        "Total count of organizations returned by the query is: {}".format(
-            total_org_count
-        )
-    )
+    LOG.info("Total organizations: {}".format(total_org_count))
+
+    if orgs_subset is not None:
+        orgs = [org for org in orgs if org["node"]["login"] in orgs_subset]
+
+        LOG.info("Organizations in scope: {}".format(len(orgs)))
+
     enterprise_id = enterprises.get_enterprise_id(api_url, enterprise_slug, headers)
     unmanaged_orgs = [
         org["node"]["id"] for org in orgs if not org["node"]["viewerCanAdminister"]
     ]
-    LOG.info(
-        "Total count of unmanaged organizations to be promoted on: {}".format(
-            len(unmanaged_orgs)
-        )
-    )
+    if not unmanaged_orgs:
+        LOG.info("No organizations to promote on")
+        return []
+
+    LOG.info("Unmanaged organizations to promote on: {}".format(len(unmanaged_orgs)))
     for i, org_id in enumerate(unmanaged_orgs):
-        LOG.info(
-            "Promoting to owner on organization: {} [{}/{}]".format(
-                org_id, i + 1, len(unmanaged_orgs)
+        if progress:
+            LOG.info(
+                "Promoting to owner on organization: {} [{}/{}]".format(
+                    org_id, i + 1, len(unmanaged_orgs)
+                )
             )
-        )
         enterprises.promote_admin(api_url, headers, enterprise_id, org_id, "OWNER")
     write_unmanaged_orgs(unmanaged_out, unmanaged_orgs)
-    LOG.info(
-        "Total count of newly managed organizations is: {}".format(len(unmanaged_orgs))
-    )
+    LOG.info("Promoted on organizations: {}".format(len(unmanaged_orgs)))
     return unmanaged_orgs
 
 
@@ -132,12 +159,21 @@ def main() -> None:
         "Authorization": f"token {github_pat}",
     }
 
+    orgs_subset_list: list[str] | None = (
+        args.orgs or util.read_lines(args.orgs_file) or None
+    )
+    orgs_subset: set[str] | None = (
+        set(orgs_subset_list) if orgs_subset_list is not None else None
+    )
+
     if (
         promote_all(
             api_url,
             headers,
             args.enterprise_slug,
+            orgs_subset,
             args.unmanaged_orgs,
+            args.progress
         )
         is None
     ):
@@ -146,6 +182,11 @@ def main() -> None:
 
     # Refresh and write all orgs CSV after promotions
     orgs = organizations.list_orgs(api_url, args.enterprise_slug, headers)
+
+    # Filter by the list of orgs, if provided
+    if orgs_subset is not None:
+        orgs = [org for org in orgs if org["node"]["login"] in orgs_subset]
+
     organizations.write_orgs_to_csv(orgs, args.orgs_csv)
 
 
