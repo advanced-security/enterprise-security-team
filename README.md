@@ -1,11 +1,11 @@
 # Enterprise security management teams
 
+> [!NOTE]
+> This is an _unofficial_ tool created by Field Security Specialists, and is not officially supported by GitHub.
+
 These scripts provide an emulated Enterprise security manager team to GitHub Enterprise (cloud or server) administrators by using the existing organization security manager role.
 
 The scripts will give you a list of all organizations in the enterprise as a CSV to work with programmatically, add you to all organizations as an owner, and can create/manage a team with the security manager role to see all GitHub Advanced Security alerts throughout the entire enterprise _without_ having admin rights to that code.
-
-> [!NOTE]
-> This is an _unofficial_ tool created by Field Security Specialists, and is not officially supported by GitHub.
 
 > [!NOTE]
 > This uses the [security manager role](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization) and parts of the GraphQL API that is available in GitHub.com (free/pro/teams and enterprise), as well as GitHub Enterprise Server versions 3.5 and higher.
