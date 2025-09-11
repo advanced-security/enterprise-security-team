@@ -186,7 +186,8 @@ def add_security_managers_to_team(
     team_members_list = [member["login"] for member in team_members]
     for username in team_members_list:
         if username not in sec_team_members:
-            LOG.info("Removing {} from {}".format(username, sec_team_name))
+            if progress:
+                LOG.info("Removing {} from {}".format(username, sec_team_name))
             try:
                 teams.remove_team_member(
                     api_url, headers, org_name, sec_team_name, username
@@ -200,7 +201,8 @@ def add_security_managers_to_team(
                 return
     for username in sec_team_members:
         if username not in team_members_list:
-            LOG.info("Adding {} to {}".format(username, sec_team_name))
+            if progress:
+                LOG.info("Adding {} to {}".format(username, sec_team_name))
             try:
                 teams.add_team_member(
                     api_url, headers, org_name, sec_team_name, username
