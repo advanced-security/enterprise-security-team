@@ -1,6 +1,5 @@
-# Token file used in local testing
-token.txt
-unmanaged_orgs.txt
+# Token file, orgs list and security managers list
+*.txt
 
 # CSV files
 *.csv

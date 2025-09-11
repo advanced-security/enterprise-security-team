@@ -4,6 +4,10 @@
 
 import os
 from urllib.parse import urlparse
+import logging
+
+
+LOG = logging.getLogger(__name__)
 
 
 def read_token(token_file: str | None) -> str | None:
@@ -25,6 +29,21 @@ def read_token(token_file: str | None) -> str | None:
         return None
 
     return token
+
+
+def read_lines(input_path: str | None) -> list[str] | None:
+    """
+    Read a file and return a list of lines.
+    """
+    if not input_path:
+        return None
+
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            return [line.strip() for line in f.readlines() if line.strip()]
+    except (FileNotFoundError, IsADirectoryError) as err:
+        LOG.error(f"⨯ File error: {input_path}: {err}")
+        raise err
 
 
 def add_request_headers(headers: dict[str, str]) -> dict[str, str]:

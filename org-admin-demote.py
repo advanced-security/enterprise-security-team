@@ -40,11 +40,16 @@ def add_args(parser: ArgumentParser) -> None:
         required=False,
         help="File containing a GitHub Personal Access Token with admin:enterprise and read:org scope (or use GITHUB_TOKEN)",
     )
-
     parser.add_argument(
         "--unmanaged-orgs",
         default="unmanaged_orgs.txt",
         help="Path to newline-delimited list of organization IDs to demote from (default: unmanaged_orgs.txt)",
+    )
+    parser.add_argument(
+        "--progress",
+        "-p",
+        action="store_true",
+        help="Show progress during demotion",
     )
     parser.add_argument(
         "--debug",
@@ -54,24 +59,23 @@ def add_args(parser: ArgumentParser) -> None:
     )
 
 
-def read_unmanaged_org_ids(path: str) -> List[str]:
-    """Return a list of non-empty lines from the unmanaged orgs file."""
-    with open(path, "r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
-
-
 def demote_admin(
-    api_url: str, headers: dict[str, str], enterprise_id: str, org_ids: Iterable[str]
+    api_url: str,
+    headers: dict[str, str],
+    enterprise_id: str,
+    org_ids: Iterable[str],
+    progress: bool = False,
 ) -> None:
     """Demote the enterprise admin from each organization ID provided."""
     org_ids_list = list(org_ids)
     LOG.info("Total count of orgs to demote admin from: {}".format(len(org_ids_list)))
     for i, org_id in enumerate(org_ids_list):
-        LOG.info(
-            "Removing from organization: {} [{}/{}]".format(
-                org_id, i + 1, len(org_ids_list)
+        if progress:
+            LOG.info(
+                "Removing from organization: {} [{}/{}]".format(
+                    org_id, i + 1, len(org_ids_list)
+                )
             )
-        )
         enterprises.promote_admin(
             api_url, headers, enterprise_id, org_id, "UNAFFILIATED"
         )
@@ -101,8 +105,13 @@ def main() -> None:
         api_url, args.enterprise_slug, headers
     )
 
-    unmanaged_orgs = read_unmanaged_org_ids(args.unmanaged_orgs)
-    demote_admin(api_url, headers, enterprise_id, unmanaged_orgs)
+    unmanaged_orgs = util.read_lines(args.unmanaged_orgs)
+
+    if not unmanaged_orgs:
+        LOG.error("⨯ No unmanaged organizations found to demote admin from")
+        return
+
+    demote_admin(api_url, headers, enterprise_id, unmanaged_orgs, args.progress)
 
 
 if __name__ == "__main__":  # pragma: no cover

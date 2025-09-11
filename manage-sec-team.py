@@ -58,6 +58,11 @@ def add_args(parser) -> None:
         help="Use legacy API endpoints to manage the security managers",
     )
     parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="Show progress information",
+    )
+    parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
@@ -71,6 +76,7 @@ def make_security_managers_team(
     api_url: str,
     headers: dict[str, str],
     legacy=False,
+    progress=False,
 ) -> None:
     """Create or update the security managers team in the specified organization."""
     security_manager_role_id: str | None = None
@@ -105,7 +111,8 @@ def make_security_managers_team(
 
     # Create the team if it doesn't exist
     if sec_team_name not in teams_list:
-        LOG.info("Creating team {}".format(sec_team_name))
+        if progress:
+            LOG.info("Creating team {}".format(sec_team_name))
         try:
             teams.create_team(api_url, headers, org_name, sec_team_name)
         except Exception as e:
@@ -130,11 +137,12 @@ def make_security_managers_team(
                 security_manager_role_id,
                 legacy=legacy,
             )
-            LOG.info(
-                "✓ Team {} updated as a security manager for {}".format(
-                    sec_team_name, org_name
+            if progress:
+                LOG.info(
+                    "✓ Team {} updated as a security manager for {}".format(
+                        sec_team_name, org_name
+                    )
                 )
-            )
         else:
             LOG.debug(
                 "✓ Team {} already has the security manager role for {}".format(
@@ -153,6 +161,7 @@ def add_security_managers_to_team(
     sec_team_members: list[str],
     api_url: str,
     headers: dict[str, str],
+    progress: bool = False,
 ) -> None:
     """Add security managers to the specified team in the organization."""
     # Get the list of org members, adding the missing ones to the org
@@ -160,7 +169,8 @@ def add_security_managers_to_team(
     org_members_list = [member["login"] for member in org_members]
     for username in sec_team_members:
         if username not in org_members_list:
-            LOG.info("Adding {} to {}".format(username, org_name))
+            if progress:
+                LOG.info("Adding {} to {}".format(username, org_name))
             try:
                 organizations.add_org_user(api_url, headers, org_name, username)
             except Exception as e:
@@ -176,7 +186,8 @@ def add_security_managers_to_team(
     team_members_list = [member["login"] for member in team_members]
     for username in team_members_list:
         if username not in sec_team_members:
-            LOG.info("Removing {} from {}".format(username, sec_team_name))
+            if progress:
+                LOG.info("Removing {} from {}".format(username, sec_team_name))
             try:
                 teams.remove_team_member(
                     api_url, headers, org_name, sec_team_name, username
@@ -190,7 +201,8 @@ def add_security_managers_to_team(
                 return
     for username in sec_team_members:
         if username not in team_members_list:
-            LOG.info("Adding {} to {}".format(username, sec_team_name))
+            if progress:
+                LOG.info("Adding {} to {}".format(username, sec_team_name))
             try:
                 teams.add_team_member(
                     api_url, headers, org_name, sec_team_name, username
@@ -232,8 +244,12 @@ def main() -> None:
 
     sec_team_members = []
     if args.sec_team_members_file:
-        with open(args.sec_team_members_file, "r") as f:
-            sec_team_members = [line.strip() for line in f if line.strip()]
+        sec_team_members = util.read_lines(args.sec_team_members_file)
+
+        if not sec_team_members:
+            LOG.error("⨯ No security team members found in file")
+            return
+
     elif args.sec_team_members:
         sec_team_members = args.sec_team_members
     else:
@@ -254,10 +270,20 @@ def main() -> None:
         org_name = org["login"]
 
         make_security_managers_team(
-            org_name, args.sec_team_name, api_url, headers, legacy=args.legacy
+            org_name,
+            args.sec_team_name,
+            api_url,
+            headers,
+            legacy=args.legacy,
+            progress=args.progress,
         )
         add_security_managers_to_team(
-            org_name, args.sec_team_name, sec_team_members, api_url, headers
+            org_name,
+            args.sec_team_name,
+            sec_team_members,
+            api_url,
+            headers,
+            progress=args.progress,
         )
 
 
