@@ -174,14 +174,18 @@ def add_security_managers_to_team(
 ) -> None:
     """Add security managers to the specified team in the organization."""
     # Get the list of org members, adding the missing ones to the org
-    org_members = organizations.list_org_users(api_url, headers, org_name, verify=verify)
+    org_members = organizations.list_org_users(
+        api_url, headers, org_name, verify=verify
+    )
     org_members_list = [member["login"] for member in org_members]
     for username in sec_team_members:
         if username not in org_members_list:
             if progress:
                 LOG.info("Adding {} to {}".format(username, org_name))
             try:
-                organizations.add_org_user(api_url, headers, org_name, username, verify=verify)
+                organizations.add_org_user(
+                    api_url, headers, org_name, username, verify=verify
+                )
             except Exception as e:
                 LOG.error(
                     "⨯ Failed to add user {} to org {}: {}".format(
@@ -191,7 +195,9 @@ def add_security_managers_to_team(
                 return
 
     # Get the list of team members, adding the missing ones to the team and removing the extra ones
-    team_members = teams.list_team_members(api_url, headers, org_name, sec_team_name, verify=verify)
+    team_members = teams.list_team_members(
+        api_url, headers, org_name, sec_team_name, verify=verify
+    )
     team_members_list = [member["login"] for member in team_members]
     for username in team_members_list:
         if username not in sec_team_members:
