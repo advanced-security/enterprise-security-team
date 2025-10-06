@@ -77,6 +77,11 @@ def add_args(parser: ArgumentParser) -> None:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--ca-bundle",
+        required=False,
+        help="Path to a custom CA certificate or bundle (PEM) for TLS verification (self-signed/internal roots)",
+    )
 
 
 def write_unmanaged_orgs(path: str, unmanaged_org_ids: List[str]) -> None:
@@ -95,17 +100,20 @@ def promote_all(
     orgs_subset: set[str] | None,
     unmanaged_out: str,
     progress: bool = False,
+    verify: str | bool | None = True,
 ) -> List[str] | None:
     """
     Promote the enterprise admin to owner on all unmanaged organizations.
 
     If a subset of organizations is provided, only attempt to promote on those; otherwise, try on all organizations.
     """
-    total_org_count = organizations.get_total_count(api_url, enterprise_slug, headers)
+    total_org_count = organizations.get_total_count(
+        api_url, enterprise_slug, headers, verify=verify
+    )
     if total_org_count == 0:
         LOG.warning("⚠️ No organizations found.")
         return []
-    orgs = organizations.list_orgs(api_url, enterprise_slug, headers)
+    orgs = organizations.list_orgs(api_url, enterprise_slug, headers, verify=verify)
     if len(orgs) != total_org_count:
         LOG.error(
             "⨯ Total count of organizations returned by the query is different from the expected count"
@@ -118,7 +126,9 @@ def promote_all(
 
         LOG.info("Organizations in scope: {}".format(len(orgs)))
 
-    enterprise_id = enterprises.get_enterprise_id(api_url, enterprise_slug, headers)
+    enterprise_id = enterprises.get_enterprise_id(
+        api_url, enterprise_slug, headers, verify=verify
+    )
     unmanaged_orgs = [
         org["node"]["id"] for org in orgs if not org["node"]["viewerCanAdminister"]
     ]
@@ -134,7 +144,9 @@ def promote_all(
                     org_id, i + 1, len(unmanaged_orgs)
                 )
             )
-        enterprises.promote_admin(api_url, headers, enterprise_id, org_id, "OWNER")
+        enterprises.promote_admin(
+            api_url, headers, enterprise_id, org_id, "OWNER", verify=verify
+        )
     write_unmanaged_orgs(unmanaged_out, unmanaged_orgs)
     LOG.info("Promoted on organizations: {}".format(len(unmanaged_orgs)))
     return unmanaged_orgs
@@ -159,6 +171,13 @@ def main() -> None:
         "Authorization": f"token {github_pat}",
     }
 
+    # Optional custom CA bundle / cert file
+    verify: str | bool | None = True
+    try:
+        verify = util.validate_ca_bundle(args.ca_bundle)
+    except FileNotFoundError:
+        return
+
     orgs_subset_list: list[str] | None = (
         args.orgs or util.read_lines(args.orgs_file) or None
     )
@@ -174,6 +193,7 @@ def main() -> None:
             orgs_subset,
             args.unmanaged_orgs,
             args.progress,
+            verify=verify,
         )
         is None
     ):
@@ -181,7 +201,9 @@ def main() -> None:
         return
 
     # Refresh and write all orgs CSV after promotions
-    orgs = organizations.list_orgs(api_url, args.enterprise_slug, headers)
+    orgs = organizations.list_orgs(
+        api_url, args.enterprise_slug, headers, verify=verify
+    )
 
     # Filter by the list of orgs, if provided
     if orgs_subset is not None:

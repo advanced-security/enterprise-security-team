@@ -57,6 +57,11 @@ def add_args(parser: ArgumentParser) -> None:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--ca-bundle",
+        required=False,
+        help="Path to a custom CA certificate or bundle (PEM) for TLS verification (self-signed/internal roots)",
+    )
 
 
 def demote_admin(
@@ -65,6 +70,7 @@ def demote_admin(
     enterprise_id: str,
     org_ids: Iterable[str],
     progress: bool = False,
+    verify: str | bool | None = True,
 ) -> None:
     """Demote the enterprise admin from each organization ID provided."""
     org_ids_list = list(org_ids)
@@ -77,7 +83,7 @@ def demote_admin(
                 )
             )
         enterprises.promote_admin(
-            api_url, headers, enterprise_id, org_id, "UNAFFILIATED"
+            api_url, headers, enterprise_id, org_id, "UNAFFILIATED", verify=verify
         )
 
 
@@ -101,8 +107,15 @@ def main() -> None:
         "Authorization": f"token {github_pat}",
     }
 
+    # Optional custom CA bundle / cert file
+    verify: str | bool | None = True
+    try:
+        verify = util.validate_ca_bundle(args.ca_bundle)
+    except FileNotFoundError:
+        return
+
     enterprise_id = enterprises.get_enterprise_id(
-        api_url, args.enterprise_slug, headers
+        api_url, args.enterprise_slug, headers, verify=verify
     )
 
     unmanaged_orgs = util.read_lines(args.unmanaged_orgs)
@@ -111,7 +124,9 @@ def main() -> None:
         LOG.error("⨯ No unmanaged organizations found to demote admin from")
         return
 
-    demote_admin(api_url, headers, enterprise_id, unmanaged_orgs, args.progress)
+    demote_admin(
+        api_url, headers, enterprise_id, unmanaged_orgs, args.progress, verify=verify
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

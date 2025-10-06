@@ -16,7 +16,10 @@ from .util import add_request_headers
 
 # List teams using REST API with pagination
 def list_teams(
-    api_endpoint: str, headers: dict[str, str], org: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    verify: str | bool | None = True,
 ) -> list[dict[str, Any]]:
     """
     List all teams in an organization.
@@ -28,6 +31,7 @@ def list_teams(
             api_endpoint
             + "/orgs/{}/teams?page={}".format(quote(org), quote(str(page))),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
         teams.extend(response.json())
@@ -40,7 +44,11 @@ def list_teams(
 # Create "closed" security manager team using REST API
 # Closed teams are visible to users, allowing an understanding of who's responsible
 def create_team(
-    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    verify: str | bool | None = True,
 ) -> dict[str, Any]:
     """
     Create a new team in an organization.
@@ -53,6 +61,7 @@ def create_team(
             "privacy": "closed",
         },
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     return response.json()
@@ -66,6 +75,7 @@ def change_team_role(
     team_slug: str,
     security_manager_role_id: str | None = None,
     legacy: bool = False,
+    verify: str | bool | None = True,
 ):
     """
     Change the role of a team in an organization to "security manager"
@@ -77,6 +87,7 @@ def change_team_role(
                 quote(org), quote(team_slug)
             ),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
     else:
@@ -87,6 +98,7 @@ def change_team_role(
                 quote(org), quote(team_slug), quote(str(security_manager_role_id))
             ),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
 
@@ -98,6 +110,7 @@ def has_team_role(
     team_slug: str,
     role_id: str | None,
     legacy=False,
+    verify: str | bool | None = True,
 ) -> bool:
     """
     Check if a team has a specific role in an organization.
@@ -107,6 +120,7 @@ def has_team_role(
         response = requests.get(
             api_endpoint + "/orgs/{}/security-managers".format(quote(org)),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
         roles = response.json()
@@ -122,6 +136,7 @@ def has_team_role(
                     quote(org), quote(str(role_id)), quote(str(page))
                 ),
                 headers=add_request_headers(headers),
+                verify=verify,
             )
             response.raise_for_status()
             teams_page = response.json()
@@ -135,7 +150,11 @@ def has_team_role(
 
 # List team members using REST API with pagination
 def list_team_members(
-    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    verify: str | bool | None = True,
 ) -> list[dict[str, Any]]:
     """
     List all members of a team in an organization.
@@ -149,6 +168,7 @@ def list_team_members(
                 quote(org), quote(team_slug), quote(str(page))
             ),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
         members.extend(response.json())
@@ -160,7 +180,12 @@ def list_team_members(
 
 # Add a user to a team using REST API
 def add_team_member(
-    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str, username: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    username: str,
+    verify: str | bool | None = True,
 ):
     """
     Add a user to a team in an organization.
@@ -171,13 +196,19 @@ def add_team_member(
             quote(org), quote(team_slug), quote(username)
         ),
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
 
 
 # Remove a user from a team using REST API
 def remove_team_member(
-    api_endpoint: str, headers: dict[str, str], org: str, team_slug: str, username: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    team_slug: str,
+    username: str,
+    verify: str | bool | None = True,
 ):
     """
     Remove a user from a team in an organization.
@@ -188,5 +219,6 @@ def remove_team_member(
             quote(org), quote(team_slug), quote(username)
         ),
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()

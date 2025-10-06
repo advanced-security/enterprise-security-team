@@ -68,6 +68,11 @@ def add_args(parser) -> None:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--ca-bundle",
+        required=False,
+        help="Path to a custom CA certificate or bundle (PEM) to trust for TLS (self-signed/internal CAs)",
+    )
 
 
 def make_security_managers_team(
@@ -77,13 +82,14 @@ def make_security_managers_team(
     headers: dict[str, str],
     legacy=False,
     progress=False,
+    verify: str | bool | None = True,
 ) -> None:
     """Create or update the security managers team in the specified organization."""
     security_manager_role_id: str | None = None
 
     if not legacy:
         org_roles: dict[str, Any] = organizations.list_org_roles(
-            api_url, headers, org_name
+            api_url, headers, org_name, verify=verify
         )
 
         # Check if the "security manager" role exists
@@ -106,7 +112,7 @@ def make_security_managers_team(
         security_manager_role_id = security_manager_role_id_list[0]
 
     # Get the list of teams
-    teams_info = teams.list_teams(api_url, headers, org_name)
+    teams_info = teams.list_teams(api_url, headers, org_name, verify=verify)
     teams_list = [team["name"] for team in teams_info]
 
     # Create the team if it doesn't exist
@@ -114,7 +120,7 @@ def make_security_managers_team(
         if progress:
             LOG.info("Creating team {}".format(sec_team_name))
         try:
-            teams.create_team(api_url, headers, org_name, sec_team_name)
+            teams.create_team(api_url, headers, org_name, sec_team_name, verify=verify)
         except Exception as e:
             LOG.error("⨯ Failed to create team {}: {}".format(sec_team_name, e))
 
@@ -128,6 +134,7 @@ def make_security_managers_team(
             sec_team_name,
             security_manager_role_id,
             legacy=legacy,
+            verify=verify,
         ):
             teams.change_team_role(
                 api_url,
@@ -136,6 +143,7 @@ def make_security_managers_team(
                 sec_team_name,
                 security_manager_role_id,
                 legacy=legacy,
+                verify=verify,
             )
             if progress:
                 LOG.info(
@@ -162,17 +170,22 @@ def add_security_managers_to_team(
     api_url: str,
     headers: dict[str, str],
     progress: bool = False,
+    verify: str | bool | None = True,
 ) -> None:
     """Add security managers to the specified team in the organization."""
     # Get the list of org members, adding the missing ones to the org
-    org_members = organizations.list_org_users(api_url, headers, org_name)
+    org_members = organizations.list_org_users(
+        api_url, headers, org_name, verify=verify
+    )
     org_members_list = [member["login"] for member in org_members]
     for username in sec_team_members:
         if username not in org_members_list:
             if progress:
                 LOG.info("Adding {} to {}".format(username, org_name))
             try:
-                organizations.add_org_user(api_url, headers, org_name, username)
+                organizations.add_org_user(
+                    api_url, headers, org_name, username, verify=verify
+                )
             except Exception as e:
                 LOG.error(
                     "⨯ Failed to add user {} to org {}: {}".format(
@@ -182,7 +195,9 @@ def add_security_managers_to_team(
                 return
 
     # Get the list of team members, adding the missing ones to the team and removing the extra ones
-    team_members = teams.list_team_members(api_url, headers, org_name, sec_team_name)
+    team_members = teams.list_team_members(
+        api_url, headers, org_name, sec_team_name, verify=verify
+    )
     team_members_list = [member["login"] for member in team_members]
     for username in team_members_list:
         if username not in sec_team_members:
@@ -190,7 +205,7 @@ def add_security_managers_to_team(
                 LOG.info("Removing {} from {}".format(username, sec_team_name))
             try:
                 teams.remove_team_member(
-                    api_url, headers, org_name, sec_team_name, username
+                    api_url, headers, org_name, sec_team_name, username, verify=verify
                 )
             except Exception as e:
                 LOG.error(
@@ -205,7 +220,7 @@ def add_security_managers_to_team(
                 LOG.info("Adding {} to {}".format(username, sec_team_name))
             try:
                 teams.add_team_member(
-                    api_url, headers, org_name, sec_team_name, username
+                    api_url, headers, org_name, sec_team_name, username, verify=verify
                 )
             except Exception as e:
                 LOG.error(
@@ -260,6 +275,13 @@ def main() -> None:
 
     api_url = util.rest_api_url_from_server_url(args.github_url)
 
+    # Optional custom CA bundle / cert file
+    verify: str | bool | None = True
+    try:
+        verify = util.validate_ca_bundle(args.ca_bundle)
+    except FileNotFoundError:
+        return
+
     # Set up the headers
     headers = {
         "Authorization": "token {}".format(github_pat),
@@ -276,6 +298,7 @@ def main() -> None:
             headers,
             legacy=args.legacy,
             progress=args.progress,
+            verify=verify,
         )
         add_security_managers_to_team(
             org_name,
@@ -284,6 +307,7 @@ def main() -> None:
             api_url,
             headers,
             progress=args.progress,
+            verify=verify,
         )
 
 
