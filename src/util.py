@@ -58,6 +58,24 @@ def add_request_headers(headers: dict[str, str]) -> dict[str, str]:
     return headers
 
 
+def validate_ca_bundle(ca_bundle_path: str | None) -> str | None:
+    """Validate a user-supplied CA certificate / bundle path.
+
+    Returns the path if it exists and is a file. If None was provided, returns None.
+    Raises FileNotFoundError if the file does not exist.
+
+    The returned value can be passed directly to the ``verify`` parameter of ``requests``.
+    """
+    if ca_bundle_path is None:
+        return None
+    if ca_bundle_path.strip() == "":
+        return None
+    if not os.path.isfile(ca_bundle_path):
+        LOG.error(f"⨯ CA bundle / certificate file not found: {ca_bundle_path}")
+        raise FileNotFoundError(ca_bundle_path)
+    return ca_bundle_path
+
+
 def graphql_api_url_from_server_url(server_url: str) -> str:
     """Generate the GraphQL API from the server URL."""
     if server_url is None:

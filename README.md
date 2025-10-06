@@ -98,3 +98,15 @@ Removing ghe-admin from security-managers
   - [requests](https://pypi.org/project/requests/) is a simple and popular HTTP library.
   - [defusedcsv](https://github.com/raphaelm/defusedcsv) is used over `csv` to mitigate spreadsheet application exploitation in older versions.
 - The `.csv` files and `.txt` files are in the `.gitignore` file to avoid accidental commits into the repo.
+
+## TLS / custom certificates
+
+If you are running against a GitHub Enterprise Server instance that uses a self‑signed certificate or an internal certificate authority, you can provide a custom root CA (or certificate bundle) with the `--ca-bundle` argument on all three scripts:
+
+```shell
+./org-admin-promote.py ENTERPRISE_SLUG --github-url https://ghe.example.com --ca-bundle /path/to/internal-ca.pem
+./manage-sec-team.py --github-url https://ghe.example.com --ca-bundle /path/to/internal-ca.pem --sec-team-members alice bob
+./org-admin-demote.py ENTERPRISE_SLUG --github-url https://ghe.example.com --ca-bundle /path/to/internal-ca.pem
+```
+
+The value passed must be a readable PEM file containing the certificate(s). If omitted, the Python default trust store is used.

@@ -10,7 +10,10 @@ from .util import add_request_headers
 
 
 def get_enterprise_id(
-    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+    api_endpoint: str,
+    enterprise_slug: str,
+    headers: dict[str, str],
+    verify: str | bool | None = True,
 ) -> str:
     """
     Get the ID of an enterprise by its slug.
@@ -28,6 +31,7 @@ def get_enterprise_id(
         api_endpoint,
         json={"query": enterprise_query},
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     return response.json()["data"]["enterprise"]["id"]
@@ -58,6 +62,7 @@ def promote_admin(
     enterprise_id: str,
     org_id: str,
     role: str,
+    verify: str | bool | None = True,
 ) -> dict[str, Any]:
     """
     Promote an enterprise admin to an organization owner.
@@ -67,6 +72,7 @@ def promote_admin(
         api_endpoint,
         json={"query": promote_query},
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     return response.json()

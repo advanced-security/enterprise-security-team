@@ -31,7 +31,10 @@ def format_errors(errors: list[dict[str, Any]]) -> str:
 
 # Count all organizations in the enterprise
 def get_total_count(
-    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+    api_endpoint: str,
+    enterprise_slug: str,
+    headers: dict[str, str],
+    verify: str | bool | None = True,
 ) -> int:
     """
     Get the total count of organizations in the enterprise.
@@ -52,6 +55,7 @@ def get_total_count(
         api_endpoint,
         json={"query": total_count_query},
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     try:
@@ -100,7 +104,10 @@ def make_org_query(enterprise_slug: str, after_cursor: str | None = None) -> str
 
 
 def list_orgs(
-    api_endpoint: str, enterprise_slug: str, headers: dict[str, str]
+    api_endpoint: str,
+    enterprise_slug: str,
+    headers: dict[str, str],
+    verify: str | bool | None = True,
 ) -> list[dict[str, Any]]:
     """
     List all organizations in the enterprise by name.
@@ -112,6 +119,7 @@ def list_orgs(
             api_endpoint,
             json={"query": make_org_query(enterprise_slug, after_cursor)},
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
         data = response.json()
@@ -164,7 +172,10 @@ def write_orgs_to_csv(orgs: list[dict[str, Any]], filename: str):
 
 
 def list_org_users(
-    api_endpoint: str, headers: dict[str, str], org: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    verify: str | bool | None = True,
 ) -> list[dict[str, Any]]:
     """
     List all users in an organization, using REST API with pagination.
@@ -176,6 +187,7 @@ def list_org_users(
             api_endpoint
             + "/orgs/{}/members?page={}".format(quote(org), quote(str(page))),
             headers=add_request_headers(headers),
+            verify=verify,
         )
         response.raise_for_status()
         users.extend(response.json())
@@ -186,7 +198,11 @@ def list_org_users(
 
 
 def add_org_user(
-    api_endpoint: str, headers: dict[str, str], org: str, username: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    username: str,
+    verify: str | bool | None = True,
 ) -> None:
     """
     Invite a user to an organization.
@@ -195,6 +211,7 @@ def add_org_user(
         api_endpoint + "/orgs/{}/memberships/{}".format(quote(org), quote(username)),
         json={"role": "member"},
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     if LOG.isEnabledFor(logging.DEBUG):
@@ -202,7 +219,10 @@ def add_org_user(
 
 
 def list_org_roles(
-    api_endpoint: str, headers: dict[str, str], org: str
+    api_endpoint: str,
+    headers: dict[str, str],
+    org: str,
+    verify: str | bool | None = True,
 ) -> dict[str, Any]:
     """
     List all roles in an organization.
@@ -210,6 +230,7 @@ def list_org_roles(
     response = requests.get(
         api_endpoint + "/orgs/{}/organization-roles".format(quote(org)),
         headers=add_request_headers(headers),
+        verify=verify,
     )
     response.raise_for_status()
     return response.json()
