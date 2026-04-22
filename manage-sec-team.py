@@ -10,7 +10,8 @@ Inputs:
 - PAT with `admin:enterprise` and `admin:org` scope, read from a named file (or GITHUB_TOKEN if that is not provided)
 - `all_orgs.csv` file from `org-admin-promote.py`
 - Team name for the security manager team
-- List of security manager team members by handle
+- Optional list of security manager team members by handle (omit when managing
+  membership via Team Sync)
 
 Outputs:
 - Prints the members that were added to and removed from the security managers team
@@ -22,7 +23,6 @@ from defusedcsv import csv
 import requests
 from src import teams, organizations, util
 import logging
-
 
 LOG = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ def main() -> None:
         LOG.error("⨯ Please use either --sec-team-members or --sec-team-members-file")
         return
 
-    sec_team_members = []
+    sec_team_members: list[str] = []
     if args.sec_team_members_file:
         sec_team_members = util.read_lines(args.sec_team_members_file)
 
@@ -269,10 +269,11 @@ def main() -> None:
     elif args.sec_team_members:
         sec_team_members = args.sec_team_members
     else:
-        LOG.error(
-            "⨯ Please provide either --sec-team-members or --sec-team-members-file"
+        LOG.info(
+            "No security team members provided; "
+            "the security managers team will be created and assigned "
+            "the security manager role, but membership will not be modified. "
         )
-        return
 
     api_url = util.rest_api_url_from_server_url(args.github_url)
 
@@ -306,15 +307,16 @@ def main() -> None:
                 progress=args.progress,
                 verify=verify,
             )
-            add_security_managers_to_team(
-                org_name,
-                args.sec_team_name,
-                sec_team_members,
-                api_url,
-                headers,
-                progress=args.progress,
-                verify=verify,
-            )
+            if sec_team_members:
+                add_security_managers_to_team(
+                    org_name,
+                    args.sec_team_name,
+                    sec_team_members,
+                    api_url,
+                    headers,
+                    progress=args.progress,
+                    verify=verify,
+                )
         except requests.exceptions.HTTPError as e:
             status = (
                 e.response.status_code if e.response is not None else "unknown"
