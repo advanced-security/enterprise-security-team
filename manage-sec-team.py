@@ -19,6 +19,7 @@ Outputs:
 from argparse import ArgumentParser
 from typing import Any
 from defusedcsv import csv
+import requests
 from src import teams, organizations, util
 import logging
 
@@ -288,27 +289,64 @@ def main() -> None:
     }
 
     # For each organization, do
+    total_orgs = len(orgs)
+    successful_orgs: list[str] = []
+    failed_orgs: list[tuple[str, str]] = []
+
     for org in orgs:
         org_name = org["login"]
 
-        make_security_managers_team(
-            org_name,
-            args.sec_team_name,
-            api_url,
-            headers,
-            legacy=args.legacy,
-            progress=args.progress,
-            verify=verify,
-        )
-        add_security_managers_to_team(
-            org_name,
-            args.sec_team_name,
-            sec_team_members,
-            api_url,
-            headers,
-            progress=args.progress,
-            verify=verify,
-        )
+        try:
+            make_security_managers_team(
+                org_name,
+                args.sec_team_name,
+                api_url,
+                headers,
+                legacy=args.legacy,
+                progress=args.progress,
+                verify=verify,
+            )
+            add_security_managers_to_team(
+                org_name,
+                args.sec_team_name,
+                sec_team_members,
+                api_url,
+                headers,
+                progress=args.progress,
+                verify=verify,
+            )
+        except requests.exceptions.HTTPError as e:
+            status = (
+                e.response.status_code if e.response is not None else "unknown"
+            )
+            if status in (403, 404):
+                LOG.warning(
+                    "⚠️ Organization '{}' is not accessible (HTTP {}); it may have been removed or the token lacks access. Skipping.".format(
+                        org_name, status
+                    )
+                )
+            else:
+                LOG.warning(
+                    "⚠️ Organization '{}' failed with HTTP {}: {}. Skipping.".format(
+                        org_name, status, e
+                    )
+                )
+            failed_orgs.append((org_name, "HTTP {}".format(status)))
+        except Exception as e:
+            LOG.warning(
+                "⚠️ Organization '{}' failed: {}. Skipping.".format(org_name, e)
+            )
+            failed_orgs.append((org_name, str(e)))
+        else:
+            successful_orgs.append(org_name)
+
+    # Summary of the run
+    LOG.info("===== Summary =====")
+    LOG.info("Organizations processed: {}".format(total_orgs))
+    LOG.info("Successful: {}".format(len(successful_orgs)))
+    LOG.info("With issues: {}".format(len(failed_orgs)))
+    for name, reason in failed_orgs:
+        LOG.info("  - {}: {}".format(name, reason))
 
 
 if __name__ == "__main__":
