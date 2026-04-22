@@ -318,9 +318,7 @@ def main() -> None:
                     verify=verify,
                 )
         except requests.exceptions.HTTPError as e:
-            status = (
-                e.response.status_code if e.response is not None else "unknown"
-            )
+            status = e.response.status_code if e.response is not None else "unknown"
             if status in (403, 404):
                 LOG.warning(
                     "⚠️ Organization '{}' is not accessible (HTTP {}); it may have been removed or the token lacks access. Skipping.".format(
