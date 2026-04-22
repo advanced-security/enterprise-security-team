@@ -49,6 +49,7 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
         - You can use the `--orgs-csv` and `--unmanaged-orgs` arguments to place these elsewhere.
     - Security manager team script:
       - Put the name of the security manager team and the team members to add in `--team-name` and `--team-members`.
+      - `--sec-team-members` (and `--sec-team-members-file`) are optional. If neither is supplied, the security managers team will still be created in each organization and assigned the security manager role, but its membership will not be modified. This is useful when team membership is managed via [Team Sync](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
       - If you are using GHES 3.15 or below, use the `--legacy` flag to use the legacy security managers API.
       - Use the list of orgs output by `org-admin-promote.py` in `--unmanaged-orgs`, if you changed the output path.
 
