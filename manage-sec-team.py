@@ -273,7 +273,6 @@ def main() -> None:
             "No security team members provided; "
             "the security managers team will be created and assigned "
             "the security manager role, but membership will not be modified. "
-            "This is useful when team membership is managed via Team Sync."
         )
 
     api_url = util.rest_api_url_from_server_url(args.github_url)
