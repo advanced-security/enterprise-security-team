@@ -23,7 +23,6 @@ from defusedcsv import csv
 from src import teams, organizations, util
 import logging
 
-
 LOG = logging.getLogger(__name__)
 
 
