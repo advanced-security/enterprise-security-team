@@ -10,18 +10,23 @@ Inputs:
 - PAT with `admin:enterprise` and `admin:org` scope, provided via --token-file or $GITHUB_TOKEN
 - Enterprise slug (the segment after /enterprises/ in the URL)
 - A newline-delimited file of organization IDs (default: unmanaged_orgs.txt)
+- Target role: unaffiliated (default) or member
 
 Outputs:
 - Prints progress lines for each organization demotion
 """
 
 from argparse import ArgumentParser
-from typing import Iterable, List
+from typing import Iterable
 from src import enterprises, util
 import logging
 
-
 LOG = logging.getLogger(__name__)
+
+TARGET_ROLES = {
+    "unaffiliated": "UNAFFILIATED",
+    "member": "DIRECT_MEMBER",
+}
 
 
 def add_args(parser: ArgumentParser) -> None:
@@ -43,7 +48,13 @@ def add_args(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--unmanaged-orgs",
         default="unmanaged_orgs.txt",
-        help="Path to newline-delimited list of organization IDs to demote from (default: unmanaged_orgs.txt)",
+        help="Path to newline-delimited organization IDs from org-admin-promote.py (default: unmanaged_orgs.txt)",
+    )
+    parser.add_argument(
+        "--target-role",
+        choices=TARGET_ROLES,
+        default="unaffiliated",
+        help="Organization role after demotion (default: unaffiliated)",
     )
     parser.add_argument(
         "--progress",
@@ -71,19 +82,26 @@ def demote_admin(
     org_ids: Iterable[str],
     progress: bool = False,
     verify: str | bool | None = True,
+    target_role: str = "unaffiliated",
 ) -> None:
     """Demote the enterprise admin from each organization ID provided."""
     org_ids_list = list(org_ids)
+    graphql_role = TARGET_ROLES[target_role]
+    progress_action = (
+        "Removing from organization"
+        if target_role == "unaffiliated"
+        else "Demoting to member in organization"
+    )
     LOG.info("Total count of orgs to demote admin from: {}".format(len(org_ids_list)))
     for i, org_id in enumerate(org_ids_list):
         if progress:
             LOG.info(
-                "Removing from organization: {} [{}/{}]".format(
-                    org_id, i + 1, len(org_ids_list)
+                "{}: {} [{}/{}]".format(
+                    progress_action, org_id, i + 1, len(org_ids_list)
                 )
             )
         enterprises.promote_admin(
-            api_url, headers, enterprise_id, org_id, "UNAFFILIATED", verify=verify
+            api_url, headers, enterprise_id, org_id, graphql_role, verify=verify
         )
 
 
@@ -125,7 +143,13 @@ def main() -> None:
         return
 
     demote_admin(
-        api_url, headers, enterprise_id, unmanaged_orgs, args.progress, verify=verify
+        api_url,
+        headers,
+        enterprise_id,
+        unmanaged_orgs,
+        args.progress,
+        verify=verify,
+        target_role=args.target_role,
     )
 
 
