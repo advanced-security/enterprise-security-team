@@ -10,6 +10,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 1. Fork and clone the repository
 1. Configure and install the dependencies: `pip3 install -r requirements.txt`
+1. Run the tests: `python3 -m unittest discover -s tests -v`
 1. Create a new branch: `git checkout -b my-branch-name`
 1. Push to your fork and submit a pull request
 1. Pat your self on the back and wait for your pull request to be reviewed! :tada:

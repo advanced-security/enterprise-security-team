@@ -14,7 +14,7 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
 
 1. [`org-admin-promote.py`](/org-admin-promote.py) replaces some of the functionality of [`ghe-org-admin-promote`](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/command-line-utilities#ghe-org-admin-promote), a built-in shell command on GHES that promotes an enterprise admin to own some/all organizations in the enterprise. It also outputs a CSV file similar to the `all_organizations.csv` [report](https://docs.github.com/en/enterprise-server@latest/admin/configuration/configuring-your-enterprise/site-admin-dashboard#reports), to better inventory organizations.
 1. [`manage-sec-team.py`](/manage-sec-team.py) creates a team in each organization, assigns it the security manager role, and then adds the people you want to that team (and removes the rest).
-1. [`org-admin-demote.py`](/org-admin-demote.py) takes the text file of orgs that the user wasn't already an owner of and "un-does" that promotion to org owner. The goal is to keep the admin account's notifications uncluttered, but running this is totally optional.
+1. [`org-admin-demote.py`](/org-admin-demote.py) takes the text file of orgs that the user wasn't already an owner of and "un-does" that promotion to org owner. By default, it removes the admin from those organizations. It can instead retain the admin as an organization member, preserving security manager team membership.
 
 ## How to use it
 
@@ -47,6 +47,7 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
         - This is string URL version of the enterprise identity. It's available in the enterprise admin url (for cloud and server), e.g. `https://github.com/enterprises/ENTERPRISE-SLUG-HERE`.
       - By default, a list of all of the organizations in scope, and the unmanaged set, will be output to `all_orgs.csv` and `unmanaged_orgs.txt` respectively.
         - You can use the `--orgs-csv` and `--unmanaged-orgs` arguments to place these elsewhere.
+      - For `org-admin-demote.py`, use `--target-role member` to retain the enterprise admin as an organization member after removing owner access. The default, `--target-role unaffiliated`, preserves the existing behavior and removes the admin from the organization.
     - Security manager team script:
       - Put the name of the security manager team and the team members to add in `--team-name` and `--team-members`.
       - `--sec-team-members` (and `--sec-team-members-file`) are optional. If neither is supplied, the security managers team will still be created in each organization and assigned the security manager role, but its membership will not be modified. This is useful when team membership is managed via [Team Sync](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
@@ -57,12 +58,12 @@ The scripts will give you a list of all organizations in the enterprise as a CSV
 
     1. `org-admin-promote.py` to add the enterprise admin to all organizations as an owner, creating a CSV of organizations.
     1. `manage-sec-team.py` to create a security manager team on all organizations and manage the members.
-    1. `org-admin-demote.py` will remove the enterprise admin from all the organizations the previous script added them to.
+    1. `org-admin-demote.py` will remove the enterprise admin's owner access from all the organizations the promotion script added them to. It removes the admin from those organizations by default, or retains organization and security manager team membership with `--target-role member`.
 
 ## Assumptions
 
 - The security manager team isn't already an existing team that's using team sync [for enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/using-saml-for-enterprise-iam/managing-team-synchronization-for-organizations-in-your-enterprise) or [for organizations](https://docs.github.com/en/enterprise-cloud@latest/organizations/organizing-members-into-teams/synchronizing-a-team-with-an-identity-provider-group).
-- The Enterprise admin account doing this is not intended to be part of the security managers team you are creating (that would conflict with the demotion script)
+- Because team membership requires organization membership, the default `unaffiliated` target also removes the admin from the security managers team. If the enterprise admin should remain in that team, run `org-admin-demote.py` with `--target-role member`.
 
 ## Example
 
@@ -89,6 +90,22 @@ Creating team security-managers
 Removing ghe-admin from security-managers
 ✓ Team security-managers updated as a security manager for testorg-00003
 ```
+
+### Demotion examples
+
+Remove the enterprise admin from the organizations recorded in `unmanaged_orgs.txt`:
+
+```shell
+./org-admin-demote.py ENTERPRISE_SLUG
+```
+
+Remove owner access while retaining the enterprise admin as an organization member and preserving its security manager team membership:
+
+```shell
+./org-admin-demote.py ENTERPRISE_SLUG --target-role member
+```
+
+Both modes operate only on the organization IDs recorded by `org-admin-promote.py`. The demotion script does not modify teams or team memberships directly.
 
 ## Architecture Footnotes
 
